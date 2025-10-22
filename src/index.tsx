@@ -2,6 +2,13 @@ import React from 'react';
 
 type Override<T, U> = Omit<T, keyof U> & U;
 
+// attache nx
+declare global {
+  interface NxStatic {
+    withProps: typeof withProps;
+  }
+}
+
 function withProps<P, T extends Partial<P>>(Component: React.ComponentType<P>, defaultProps: T) {
   const WithPropsComponent = (props: Override<P, Partial<T>>) => {
     return <Component {...defaultProps} {...(props as P)} />;
