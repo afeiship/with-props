@@ -30,7 +30,7 @@ const MyComponent: React.FC<MyComponentProps> = (props) => {
 };
 
 // 使用 withProps 直接传递 defaultProps 和组件
-const EnhancedComponent = withProps({ title: 'Default Title' }, MyComponent);
+const EnhancedComponent = withProps( MyComponent, { title: 'Default Title' });
 
 const App: React.FC = () => {
   return React.createElement('div', null,

@@ -1,8 +1,8 @@
 import { createElement, ComponentType } from 'react';
 
 function withProps<P>(
-  defaultProps: Partial<P>,
-  Component?: ComponentType<P>,
+  Component: ComponentType<P>,
+  defaultProps?: Partial<P>
 ): ComponentType<P> | ((Component: ComponentType<P>) => ComponentType<P>) {
   const enhance = (Component: ComponentType<P>): ComponentType<P> => {
     return (props: P) => {
