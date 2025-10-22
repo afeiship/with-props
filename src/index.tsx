@@ -2,10 +2,7 @@ import React from 'react';
 
 type Override<T, U> = Omit<T, keyof U> & U;
 
-export function withProps<P, T extends Partial<P>>(
-  Component: React.ComponentType<P>,
-  defaultProps: T
-) {
+function withProps<P, T extends Partial<P>>(Component: React.ComponentType<P>, defaultProps: T) {
   const WithPropsComponent = (props: Override<P, Partial<T>>) => {
     return <Component {...defaultProps} {...(props as P)} />;
   };
@@ -15,3 +12,5 @@ export function withProps<P, T extends Partial<P>>(
 
   return WithPropsComponent as React.FC<Override<P, Partial<T>>>;
 }
+
+export default withProps;
