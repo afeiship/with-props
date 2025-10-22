@@ -10,7 +10,13 @@
     "skipDefaultLibCheck": true,
     "module": "es2015",
     "moduleResolution": "node",
-    "noImplicitAny": false
+    "noImplicitAny": false,
+    // 👇 关键新增配置
+    "jsx": "react-jsx", // 启用 JSX 支持（React 17+ 新 JSX 转换）
+    "lib": [
+      "dom",
+      "es2015"
+    ] // 添加 DOM 类型（必需）
   },
   "include": [
     "src",
