@@ -1,3 +1,4 @@
+/// <reference types="bun" />
 import { test, expect } from 'bun:test';
 import React from 'react';
 import withProps from '../src/index';

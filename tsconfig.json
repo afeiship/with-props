@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "target": "es5",
+    "target": "es2015",
     "strict": true,
     "skipLibCheck": true,
     "sourceMap": true,
@@ -9,14 +9,16 @@
     "esModuleInterop": true,
     "skipDefaultLibCheck": true,
     "module": "es2015",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "noImplicitAny": false,
-    // 👇 关键新增配置
-    "jsx": "react-jsx", // 启用 JSX 支持（React 17+ 新 JSX 转换）
+    "jsx": "react-jsx",
     "lib": [
       "dom",
       "es2015"
-    ] // 添加 DOM 类型（必需）
+    ],
+    "types": [
+      "bun"
+    ]
   },
   "include": [
     "src",
