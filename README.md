@@ -12,34 +12,50 @@ npm install @jswork/with-props
 ```
 
 ## usage
-```js
+
+```tsx
 import withProps from '@jswork/with-props';
 import React from 'react';
 
-interface MyComponentProps {
-  title: string;
-  content: string;
+interface ButtonProps {
+  text: string;
+  color?: string;
+  size?: 'small' | 'medium' | 'large';
 }
 
-const MyComponent: React.FC<MyComponentProps> = (props) => {
-  const { title, content } = props;
-  return React.createElement('div', null,
-    React.createElement('h1', null, title),
-    React.createElement('p', null, content)
+const Button: React.FC<ButtonProps> = ({ text, color = 'blue', size = 'medium' }) => {
+  return (
+    <button style={{ color, fontSize: size === 'small' ? '12px' : size === 'large' ? '20px' : '16px' }}>
+      {text}
+    </button>
   );
 };
 
-// 使用 withProps 直接传递 defaultProps 和组件
-const EnhancedComponent = withProps( MyComponent, { title: 'Default Title' });
+// 创建带有默认 props 的组件
+const PrimaryButton = withProps(Button, {
+  color: 'red',
+  size: 'large'
+});
 
 const App: React.FC = () => {
-  return React.createElement('div', null,
-    React.createElement(EnhancedComponent, { content: 'Custom Content' })
+  return (
+    <div>
+      {/* 使用默认 props */}
+      <PrimaryButton text="Click me" />
+
+      {/* 覆盖默认 props */}
+      <PrimaryButton text="Cancel" color="gray" />
+    </div>
   );
 };
-
-export default App;
 ```
+
+### Features
+
+- **Type Safe**: Full TypeScript support with proper type inference
+- **Props Merging**: Default props are overridden by provided props
+- **Simple API**: Just pass component and default props
+- **Zero Dependencies**: Lightweight and focused
 
 ## license
 Code released under [the MIT license](https://github.com/afeiship/with-props/blob/master/LICENSE.txt).

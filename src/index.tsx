@@ -1,23 +1,20 @@
 import React from 'react';
 
-type Override<T, U> = Omit<T, keyof U> & U;
+type PropsWithDefaults<P, D extends Partial<P>> = Omit<P, keyof D> & Partial<D>;
 
-// attache nx
-declare global {
-  interface NxStatic {
-    withProps: typeof withProps;
-  }
-}
-
-function withProps<P, T extends Partial<P>>(Component: React.ComponentType<P>, defaultProps: T) {
-  const WithPropsComponent = (props: Override<P, Partial<T>>) => {
-    return <Component {...defaultProps} {...(props as P)} />;
+const withProps = <P, D extends Partial<P>>(
+  Component: React.ComponentType<P>,
+  defaultProps: D,
+): React.ComponentType<PropsWithDefaults<P, D>> => {
+  const Wrapped = (props: PropsWithDefaults<P, D>) => {
+    const ComponentForRender = Component as (props: P) => React.ReactElement | null;
+    const mergedProps = { ...defaultProps, ...props };
+    return ComponentForRender(mergedProps as P);
   };
 
-  // 可选：保留 displayName 便于调试
-  WithPropsComponent.displayName = `withProps(${Component.displayName || Component.name})`;
+  Wrapped.displayName = `withProps(${Component.displayName || 'Component'})`;
 
-  return WithPropsComponent as React.FC<Override<P, Partial<T>>>;
-}
+  return Wrapped;
+};
 
 export default withProps;
