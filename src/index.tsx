@@ -87,9 +87,8 @@ const withProps = <P, D extends Partial<P>>(
   defaultProps: D,
 ): React.ComponentType<PropsWithDefaults<P, D>> => {
   const Wrapped = (props: PropsWithDefaults<P, D>) => {
-    const ComponentForRender = Component as (props: P) => React.ReactElement | null;
-    const mergedProps = { ...defaultProps, ...props };
-    return ComponentForRender(mergedProps as P);
+    const mergedProps = { ...defaultProps, ...props } as any;
+    return React.createElement(Component as any, mergedProps);
   };
 
   Wrapped.displayName = `withProps(${Component.displayName || 'Component'})`;
