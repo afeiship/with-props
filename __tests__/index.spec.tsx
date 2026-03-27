@@ -128,3 +128,93 @@ test('should render with both as prop and custom props', () => {
   expect(element.props.type).toBe('submit');
   expect(element.props['data-action']).toBe('submit');
 });
+
+// Real Card component test
+interface CardProps {
+  title?: string;
+  description?: string;
+  footer?: React.ReactNode;
+  variant?: 'default' | 'outlined' | 'elevated';
+  children?: React.ReactNode;
+}
+
+const Card: React.FC<CardProps> = ({ title, description, footer, variant = 'default', children }) => {
+  return (
+    <div className={`card card--${variant}`} data-variant={variant}>
+      {title && <div className="card__title">{title}</div>}
+      {description && <div className="card__description">{description}</div>}
+      {children && <div className="card__content">{children}</div>}
+      {footer && <div className="card__footer">{footer}</div>}
+    </div>
+  );
+};
+
+Card.displayName = 'Card';
+
+test('should work with real React components', () => {
+  const DefaultCard = withProps(Card, {
+    variant: 'elevated',
+    title: 'Default Title',
+  });
+
+  expect(DefaultCard.displayName).toBe('Card.withProps({"variant":"elevated","title":"Default Title"})');
+
+  // Test that the component can be created with standard div props
+  const element = (
+    <DefaultCard
+      className="custom-card"
+      data-testid="card"
+      role="article"
+    >
+      <p>Card content</p>
+    </DefaultCard>
+  );
+
+  expect(element.props.className).toBe('custom-card');
+  expect(element.props['data-testid']).toBe('card');
+  expect(element.props.role).toBe('article');
+  expect(element.props.children).toEqual(<p>Card content</p>);
+});
+
+test('should support chaining with real components', () => {
+  const PrimaryCard = withProps(Card, {
+    variant: 'elevated',
+  });
+
+  const StyledCard = PrimaryCard.withProps({
+    className: 'card-styled',
+  });
+
+  expect(PrimaryCard.displayName).toBe('Card.withProps({"variant":"elevated"})');
+  expect(StyledCard.displayName).toBe('Card.withProps({"variant":"elevated"}).withProps({"className":"card-styled"})');
+
+  // Test that chaining works with standard props
+  const element = (
+    <StyledCard
+      id="my-card"
+      style={{ padding: '16px' }}
+    />
+  );
+
+  expect(element.props.id).toBe('my-card');
+  expect(element.props.style).toEqual({ padding: '16px' });
+});
+
+test('should override defaults from real components', () => {
+  const DefaultCard = withProps(Card, {
+    className: 'default-card',
+    title: 'Default Title',
+  });
+
+  const element = (
+    <DefaultCard className="custom-card" id="card-1" description="abc-desc">
+      Content
+    </DefaultCard>
+  );
+
+  expect(element.props.className).toBe('custom-card');
+  expect(element.props.id).toBe('card-1');
+  expect(element.props.children).toEqual('Content');
+  expect(element.props.description).toBe("abc-desc")
+});
+
