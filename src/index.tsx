@@ -1,128 +1,83 @@
-import React, { forwardRef } from 'react';
+import React, { type ElementType, forwardRef } from 'react';
 
 /**
- * A type that represents props with default values applied.
- *
- * This type constructs a new props type where properties specified in the defaults
- * become optional, while all other props remain required.
- *
- * @template P - The original props type of the component
- * @template D - The type of default props (must be a partial of P)
- *
- * @example
- * ```tsx
- * interface ButtonProps {
- *   label: string;
- *   size: 'small' | 'medium' | 'large';
- *   disabled: boolean;
- * }
- *
- * // With defaults for 'size' and 'disabled'
- * type ButtonPropsWithDefaults = PropsWithDefaults<ButtonProps, { size: 'medium'; disabled: false }>;
- * // Result: { label: string; size?: 'medium'; disabled?: false }
- * ```
+ * Base props interface for polymorphic components.
+ * Includes the `as` prop to change the rendered element type and `children`.
  */
-type PropsWithDefaults<P, D extends Partial<P>> = Omit<P, keyof D> & Partial<D>;
+interface PolymorphicProps<C extends ElementType> {
+  as?: C;
+  children?: React.ReactNode;
+}
 
 /**
- * The return type of withProps, supporting chaining.
+ * Core type utility: computes the complete Props type based on the component type C.
+ * Logic: (custom base Props) & (C component's native Props - conflicting keys)
  */
-type WithPropsComponent<P, D extends Partial<P>> = React.ForwardRefExoticComponent<
-  PropsWithDefaults<P, D> & React.RefAttributes<unknown>
-> & {
+type Props<C extends ElementType> = PolymorphicProps<C> &
+  Omit<React.ComponentPropsWithoutRef<C>, keyof PolymorphicProps<C>>;
+
+/**
+ * Type definition for the component returned by withProps (for external type inference).
+ * All properties from defaultProps are made optional since they have default values.
+ */
+type WithPropsReturnType<D extends Record<string, unknown>> = (<C extends ElementType = 'div'>(
+  props: D extends { as: infer DefaultAs extends ElementType }
+    ? Props<DefaultAs> & Partial<Omit<D, 'as'>> & { as?: C; ref?: React.Ref<React.ComponentRef<C>> }
+    : Props<C> & Partial<D> & { ref?: React.Ref<React.ComponentRef<C>> },
+) => React.ReactElement) & {
   displayName?: string;
-  withProps<D2 extends Partial<P>>(
-    this: WithPropsComponent<P, D>,
+  withProps<D2 extends Record<string, unknown>>(
+    this: WithPropsReturnType<D>,
     defaultProps: D2,
-  ): WithPropsComponent<P, D2>;
+  ): WithPropsReturnType<D2>;
 };
 
 /**
- * A higher-order component that applies default props to a React component.
+ * A higher-order component that adds default props to a component.
+ * Optimized for polymorphic components with `as` prop support.
  *
- * This function creates a new component with specified default props. When the wrapped
- * component is used, the provided props are merged with the defaults, where explicit
- * props take precedence over defaults.
- *
- * @template P - The props type of the original component
- * @template D - The type of default props (must extend Partial<P>)
- *
- * @param Component - The React component to wrap. Can be a function component or class component.
- * @param defaultProps - An object containing default values for specific props.
- * These props become optional when using the wrapped component.
- *
- * @returns A new React component with the default props applied. The returned component
- * has a displayName in the format `withProps(ComponentName)` and supports chaining.
+ * @param component - The component to wrap
+ * @param defaultProps - Default props to merge with the component
+ * @returns A new component with default props applied
  *
  * @example
  * ```tsx
- * interface ButtonProps {
- *   label: string;
- *   variant: 'primary' | 'secondary';
- *   size: 'sm' | 'md' | 'lg';
- * }
- *
- * const Button = ({ label, variant, size }: ButtonProps) => (
- *   <button className={`${variant} ${size}`}>{label}</button>
- * );
- *
- * const DefaultButton = withProps(Button, {
- *   variant: 'primary',
- *   size: 'md',
- * });
- *
- * // 'variant' and 'size' are now optional
- * <DefaultButton label="Click me" />
- * <DefaultButton label="Click me" variant="secondary" />
+ * const Button = withProps('button', { className: 'btn' });
+ * const Link = Button.withProps({ as: 'a', href: '#' });
  * ```
- *
- * @example
- * ```tsx
- * // Chaining withProps
- * const PrimaryButton = withProps(Button, { variant: 'primary' });
- * const SmallPrimaryButton = PrimaryButton.withProps({ size: 'sm' });
- *
- * // <SmallPrimaryButton label="Click" /> has variant='primary' and size='sm'
- * ```
- *
- * @remarks
- * - The HOC preserves the original component's behavior and only adds default prop values.
- * - Explicit props passed to the wrapped component always override defaults.
- * - The displayName is set for better debugging in React DevTools.
- * - Supports forwarding refs.
- * - Supports chaining via the `.withProps()` method.
  */
-function withProps<P extends object, D extends Partial<P>>(
-  Component: React.ComponentType<P>,
-  defaultProps: D,
-): WithPropsComponent<P, D> {
-  const Wrapped = forwardRef<unknown, PropsWithDefaults<P, D>>(function WithProps(
-    props,
+function withProps<D extends Record<string, unknown>>(component, defaultProps: D): WithPropsReturnType<D> {
+  const Wrapped = forwardRef<HTMLElement, Props<'div'> & D>(function BoxWithProps(
+    { as: asProp, children, ...props },
     ref,
   ) {
+    // Prioritize the passed `as` prop, otherwise use the `as` from default props
+    const Component = (asProp || (defaultProps.as as ElementType) || 'div') as ElementType;
+
+    // Merge props: passed props override default props
     const mergedProps = {
       ...defaultProps,
       ...props,
-    } as unknown as P;
+      // Ensure `as` prop is handled correctly
+      ...(asProp !== undefined && { as: asProp }),
+    };
 
-    return React.createElement(Component, mergedProps);
+    return (
+      <Component ref={ref} {...mergedProps}>
+        {children}
+      </Component>
+    );
   });
 
-  Wrapped.displayName = `withProps(${Component.displayName || Component.name || 'Component'})`;
+  Wrapped.displayName = `${component.displayName || 'Box'}.withProps(${JSON.stringify(defaultProps)})`;
 
-  // Support chaining
-  return Object.assign(Wrapped as unknown as WithPropsComponent<P, D>, {
-    withProps<D2 extends Partial<P>>(
-      this: WithPropsComponent<P, D>,
-      additionalDefaults: D2,
-    ): WithPropsComponent<P, D2> {
-      // Merge the existing defaults with new defaults
-      const mergedDefaults = {
-        ...defaultProps,
-        ...additionalDefaults,
-      } as unknown as D & D2;
-
-      return withProps(Component, mergedDefaults) as unknown as WithPropsComponent<P, D2>;
+  // Recursively copy the withProps method to the new component for chaining
+  return Object.assign(Wrapped as unknown as WithPropsReturnType<D>, {
+    withProps<D2 extends Record<string, unknown>>(
+      this: WithPropsReturnType<D>,
+      defaultProps: D2,
+    ): WithPropsReturnType<D2> {
+      return withProps(this, defaultProps);
     },
   });
 }

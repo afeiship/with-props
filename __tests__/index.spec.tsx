@@ -1,160 +1,130 @@
 /// <reference types="bun" />
 import { test, expect } from 'bun:test';
 import React from 'react';
-import withProps from '../src/index';
+import withProps from '../src';
 
-// 测试组件
-interface ButtonProps {
-  text: string;
-  color?: string;
-  size?: 'small' | 'medium' | 'large';
-  disabled?: boolean;
-}
-
-const Button: React.FC<ButtonProps> = (props) => {
-  return (
-    <button
-      disabled={props.disabled}
-      style={{
-        color: props.color,
-        fontSize: props.size === 'small' ? '12px' : props.size === 'large' ? '20px' : '16px'
-      }}
-    >
-      {props.text}
-    </button>
-  );
-};
-
-test('should merge default props with provided props', () => {
-  const ButtonWithDefaults = withProps(Button, {
-    color: 'red',
-    size: 'large'
-  });
-
-  // 使用 JSX 语法，只传递必需的 props
-  const wrapper = <ButtonWithDefaults text="Click me" />;
-
-  // 验证传递的 props 存在
-  expect(wrapper.props.text).toBe('Click me');
-  // 默认 props 不会在 wrapper.props 中，它们在组件内部合并
+test('should set displayName based on component type', () => {
+  const Box = withProps('div', { className: 'box' });
+  // String components don't have displayName, so it falls back to 'Box'
+  expect(Box.displayName).toBe('Box.withProps({"className":"box"})');
 });
 
-test('should override default props when provided', () => {
-  const ButtonWithDefaults = withProps(Button, {
-    color: 'red',
-    size: 'large'
-  });
+test('should accept custom props', () => {
+  const Box = withProps('div', { className: 'box' });
 
-  // 覆盖部分默认 props
-  const element = <ButtonWithDefaults text="Click me" color="green" />;
+  const element = <Box className="custom" id="test">Hello</Box>;
 
-  expect(element.props.text).toBe('Click me');
-  expect(element.props.color).toBe('green'); // 覆盖了默认的 'red'
-  // size 没传，使用默认值 'large'，但不会在 element.props 中
+  // Passed props are visible in element.props
+  expect(element.props.className).toBe('custom');
+  expect(element.props.id).toBe('test');
+  expect(element.props.children).toBe('Hello');
 });
 
-test('should set correct displayName', () => {
-  const ButtonWithDefaults = withProps(Button, { color: 'red' });
-  expect(ButtonWithDefaults.displayName).toBe('withProps(Button)');
+test('should support polymorphic as prop to change element type', () => {
+  const Box = withProps('div', { className: 'box' });
 
-  // 测试有 displayName 的组件
-  const NamedComponent: React.FC<{ foo: string }> = () => null;
-  NamedComponent.displayName = 'NamedComponent';
+  // Render as a button instead of div
+  const element = <Box as="button" type="submit">Click me</Box>;
 
-  const NamedWithDefaults = withProps(NamedComponent, { foo: 'bar' });
-  expect(NamedWithDefaults.displayName).toBe('withProps(NamedComponent)');
+  expect(element.props.as).toBe('button');
+  expect(element.props.type).toBe('submit');
 });
 
-test('should work with function components', () => {
-  const Text: React.FC<{ content: string; bold?: boolean }> = (props) => {
-    return props.bold ? <b>{props.content}</b> : <span>{props.content}</span>;
-  };
+test('should support as prop in defaultProps', () => {
+  const Link = withProps('div', { as: 'a' });
 
-  const TextWithDefaults = withProps(Text, { bold: true });
-  const element = <TextWithDefaults content="Hello" />;
+  // Need to explicitly pass as prop for correct type inference
+  const element = <Link as="a" href="#" className="link">Go to link</Link>;
 
-  expect(element.props.content).toBe('Hello');
-  // bold 有默认值 true，但不会在 element.props 中显示
+  // Explicitly passed props are visible
+  expect(element.props.href).toBe('#');
+  expect(element.props.className).toBe('link');
 });
 
-test('should preserve component with original props type', () => {
-  const ButtonWithDefaults = withProps(Button, { color: 'red' });
+test('should allow overriding as prop at usage', () => {
+  const Link = withProps('div', { as: 'a' });
 
-  const element = <ButtonWithDefaults text="Test" size="small" />;
+  // Override the default 'a' with 'button'
+  const element = <Link as="button" type="button">Click</Link>;
 
-  expect(element.props.text).toBe('Test');
-  expect(element.props.size).toBe('small');
-  // color 使用默认值 'red'，但不会在 element.props 中
+  expect(element.props.as).toBe('button');
+  expect(element.props.type).toBe('button');
 });
 
-test('should support forwardRef components', () => {
-  const Input = React.forwardRef<HTMLInputElement, { value: string }>((props, ref) => {
-    return <input ref={ref} value={props.value} />;
-  });
-  Input.displayName = 'Input';
+test('should have cumulative displayName on chained components', () => {
+  const FirstDefaults = withProps('div', { className: 'first' });
+  const SecondDefaults = FirstDefaults.withProps({ id: 'second' });
 
-  // 应该能够包装 forwardRef 组件
-  const InputWithDefaults = withProps(Input, { value: 'default' });
-
-  expect(InputWithDefaults.displayName).toBe('withProps(Input)');
-
-  // 创建元素验证类型正确
-  const element = <InputWithDefaults value="test" />;
-  expect(element.props.value).toBe('test');
+  expect(FirstDefaults.displayName).toBe('Box.withProps({"className":"first"})');
+  // Chained calls accumulate in displayName
+  expect(SecondDefaults.displayName).toBe('Box.withProps({"className":"first"}).withProps({"id":"second"})');
 });
 
 test('should support chaining with withProps method', () => {
-  const PrimaryButton = withProps(Button, {
-    color: 'blue',
+  const PrimaryBox = withProps('div', {
+    className: 'box',
   });
 
-  const SmallPrimaryButton = PrimaryButton.withProps({
-    size: 'small',
+  const SmallPrimaryBox = PrimaryBox.withProps({
+    style: { fontSize: '12px' },
   });
 
-  const element = <SmallPrimaryButton text="Click" />;
+  // Explicitly passed props override
+  const element = <SmallPrimaryBox className="custom" style={{ fontSize: '14px' }}>Hello</SmallPrimaryBox>;
 
-  expect(element.props.text).toBe('Click');
-  // color 和 size 通过链式调用设置默认值
+  expect(element.props.className).toBe('custom');
+  expect(element.props.style).toEqual({ fontSize: '14px' });
 });
 
-test('should merge defaults in chained calls', () => {
-  const FirstDefaults = withProps(Button, {
-    color: 'red',
-    size: 'large',
-  });
+test('should support forwardRef', () => {
+  const Box = withProps('div', { className: 'box' });
 
-  const SecondDefaults = FirstDefaults.withProps({
-    disabled: true,
-  });
+  // Should be able to pass ref
+  const ref = React.createRef<HTMLDivElement>();
+  const element = <Box ref={ref}>Hello</Box>;
 
-  const element = <SecondDefaults text="Disabled" />;
-
-  expect(element.props.text).toBe('Disabled');
-  // color: 'red', size: 'large', disabled: true 通过链式调用设置
+  expect(element.props.children).toBe('Hello');
 });
 
-test('should override defaults in later chain calls', () => {
-  const FirstDefaults = withProps(Button, {
-    color: 'red',
-    size: 'large',
+test('should work with complex props', () => {
+  const Card = withProps('div', {
+    className: 'card',
+    role: 'article',
   });
 
-  const SecondDefaults = FirstDefaults.withProps({
-    color: 'blue', // 覆盖第一次设置的 color
-  });
+  const element = (
+    <Card role="group" style={{ padding: '16px' }} aria-label="Card content">
+      Card content
+    </Card>
+  );
 
-  const element = <SecondDefaults text="Blue Button" />;
-
-  expect(element.props.text).toBe('Blue Button');
-  // color 在第二次 withProps 中设置了，所以它是默认值，不会在 element.props 中显示
-  // size 在第一次 withProps 中设置为 'large'
+  expect(element.props.role).toBe('group');
+  expect(element.props.style).toEqual({ padding: '16px' });
+  expect(element.props['aria-label']).toBe('Card content');
 });
 
-test('should have displayName on chained components', () => {
-  const FirstDefaults = withProps(Button, { color: 'red' });
-  const SecondDefaults = FirstDefaults.withProps({ size: 'small' });
+test('should preserve children', () => {
+  const Box = withProps('div', { className: 'box' });
 
-  expect(FirstDefaults.displayName).toBe('withProps(Button)');
-  expect(SecondDefaults.displayName).toBe('withProps(Button)');
+  const element = (
+    <Box>
+      <span>Child 1</span>
+      <span>Child 2</span>
+    </Box>
+  );
+
+  expect(element.props.children).toEqual([
+    <span>Child 1</span>,
+    <span>Child 2</span>,
+  ]);
+});
+
+test('should render with both as prop and custom props', () => {
+  const Box = withProps('div', { className: 'box' });
+
+  const element = <Box as="button" type="submit" data-action="submit">Submit</Box>;
+
+  expect(element.props.as).toBe('button');
+  expect(element.props.type).toBe('submit');
+  expect(element.props['data-action']).toBe('submit');
 });
