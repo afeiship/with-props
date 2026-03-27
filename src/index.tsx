@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { forwardRef } from 'react';
 
 /**
  * A type that represents props with default values applied.
@@ -25,6 +25,19 @@ import React from 'react';
 type PropsWithDefaults<P, D extends Partial<P>> = Omit<P, keyof D> & Partial<D>;
 
 /**
+ * The return type of withProps, supporting chaining.
+ */
+type WithPropsComponent<P, D extends Partial<P>> = React.ForwardRefExoticComponent<
+  PropsWithDefaults<P, D> & React.RefAttributes<unknown>
+> & {
+  displayName?: string;
+  withProps<D2 extends Partial<P>>(
+    this: WithPropsComponent<P, D>,
+    defaultProps: D2,
+  ): WithPropsComponent<P, D2>;
+};
+
+/**
  * A higher-order component that applies default props to a React component.
  *
  * This function creates a new component with specified default props. When the wrapped
@@ -39,7 +52,7 @@ type PropsWithDefaults<P, D extends Partial<P>> = Omit<P, keyof D> & Partial<D>;
  * These props become optional when using the wrapped component.
  *
  * @returns A new React component with the default props applied. The returned component
- * has a displayName in the format `withProps(ComponentName)`.
+ * has a displayName in the format `withProps(ComponentName)` and supports chaining.
  *
  * @example
  * ```tsx
@@ -65,35 +78,53 @@ type PropsWithDefaults<P, D extends Partial<P>> = Omit<P, keyof D> & Partial<D>;
  *
  * @example
  * ```tsx
- * // With function components
- * const Card = withProps(({ title, subtitle = 'No subtitle' }: {
- *   title: string;
- *   subtitle?: string;
- * }) => (
- *   <div>
- *     <h2>{title}</h2>
- *     <p>{subtitle}</p>
- *   </div>
- * ), { subtitle: 'Default subtitle' });
+ * // Chaining withProps
+ * const PrimaryButton = withProps(Button, { variant: 'primary' });
+ * const SmallPrimaryButton = PrimaryButton.withProps({ size: 'sm' });
+ *
+ * // <SmallPrimaryButton label="Click" /> has variant='primary' and size='sm'
  * ```
  *
  * @remarks
  * - The HOC preserves the original component's behavior and only adds default prop values.
  * - Explicit props passed to the wrapped component always override defaults.
  * - The displayName is set for better debugging in React DevTools.
+ * - Supports forwarding refs.
+ * - Supports chaining via the `.withProps()` method.
  */
-const withProps = <P, D extends Partial<P>>(
+function withProps<P extends object, D extends Partial<P>>(
   Component: React.ComponentType<P>,
   defaultProps: D,
-): React.ComponentType<PropsWithDefaults<P, D>> => {
-  const Wrapped = (props: PropsWithDefaults<P, D>) => {
-    const mergedProps = { ...defaultProps, ...props } as any;
-    return React.createElement(Component as any, mergedProps);
-  };
+): WithPropsComponent<P, D> {
+  const Wrapped = forwardRef<unknown, PropsWithDefaults<P, D>>(function WithProps(
+    props,
+    ref,
+  ) {
+    const mergedProps = {
+      ...defaultProps,
+      ...props,
+    } as unknown as P;
 
-  Wrapped.displayName = `withProps(${Component.displayName || 'Component'})`;
+    return React.createElement(Component, mergedProps);
+  });
 
-  return Wrapped;
-};
+  Wrapped.displayName = `withProps(${Component.displayName || Component.name || 'Component'})`;
+
+  // Support chaining
+  return Object.assign(Wrapped as unknown as WithPropsComponent<P, D>, {
+    withProps<D2 extends Partial<P>>(
+      this: WithPropsComponent<P, D>,
+      additionalDefaults: D2,
+    ): WithPropsComponent<P, D2> {
+      // Merge the existing defaults with new defaults
+      const mergedDefaults = {
+        ...defaultProps,
+        ...additionalDefaults,
+      } as unknown as D & D2;
+
+      return withProps(Component, mergedDefaults) as unknown as WithPropsComponent<P, D2>;
+    },
+  });
+}
 
 export default withProps;
