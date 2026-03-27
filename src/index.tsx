@@ -1,89 +1,60 @@
-import React, { type ElementType, forwardRef } from 'react';
+import React, { ElementType, forwardRef } from 'react';
 
 /**
- * Base props interface for polymorphic components.
- * Includes the `as` prop to change the rendered element type and `children`.
+ * Base props for polymorphic components.
  */
-interface PolymorphicProps<C extends ElementType> {
+export interface PolymorphicProps<C extends ElementType> {
   as?: C;
   children?: React.ReactNode;
 }
 
 /**
- * Core type utility: computes the complete Props type based on the component type C.
- * Logic: (custom base Props) & (C component's native Props - conflicting keys)
+ * Computes complete props type for a given component type.
  */
-type Props<C extends ElementType> = PolymorphicProps<C> &
+export type Props<C extends ElementType> = PolymorphicProps<C> &
   Omit<React.ComponentPropsWithoutRef<C>, keyof PolymorphicProps<C>>;
 
 /**
- * Helper type to check if a type is a string literal element type
+ * Return type for components created with withProps.
  */
-type IsStringElementType<T> = T extends string ? true : false;
-
-/**
- * Implementation for string elements only (not React components)
- */
-function withProps<C extends keyof JSX.IntrinsicElements, D extends Record<string, unknown>>(
-  component: C,
-  defaultProps: D,
-): (<C2 extends ElementType = C>(
-  props: D extends { as: infer DefaultAs extends ElementType }
-    ? Props<DefaultAs> & Partial<Omit<D, 'as'>> & { as?: C2; ref?: React.Ref<React.ComponentRef<C2>> }
-    : Props<C2> & Partial<D> & { ref?: React.Ref<React.ComponentRef<C2>> },
+export type WithPropsReturnType<D extends Record<string, unknown>> = (<C extends ElementType = 'div'>(
+  props: D extends { as: infer DefaultAs }
+    ? DefaultAs extends ElementType
+      ? React.ComponentPropsWithoutRef<DefaultAs> & Omit<D, 'as'> & { as?: C; ref?: React.Ref<React.ComponentRef<C>> }
+      : Props<C> & D & { ref?: React.Ref<React.ComponentRef<C>> }
+    : Props<C> & D & { ref?: React.Ref<React.ComponentRef<C>> },
 ) => React.ReactElement) & {
   displayName?: string;
-  withProps<D2 extends Record<string, unknown>>(defaultProps: D2): any;
+  withProps<D2 extends Record<string, unknown>>(
+    this: WithPropsReturnType<D>,
+    defaultProps: D2,
+  ): WithPropsReturnType<D2>;
 };
 
 /**
- * Implementation for React components
+ * Creates a polymorphic component with default props.
+ * @param component - The component to wrap.
+ * @param defaultProps - Default props to apply.
+ * @returns A new component with merged default props.
+ * @example
+ * ```tsx
+ * const Box = withProps('div', { className: 'box' });
+ * <Box as="section" className="custom" />
+ * ```
  */
-function withProps<P extends Record<string, unknown>, D extends Partial<P>>(
-  component: React.ComponentType<P>,
-  defaultProps: D,
-): React.FC<Omit<P, keyof D> & Partial<D> & React.HTMLAttributes<HTMLElement>> & {
-  displayName?: string;
-  withProps<D2 extends Partial<any>>(defaultProps: D2): any;
-};
-
-/**
- * Main implementation
- */
-function withProps(component: any, defaultProps: any): any {
-  const isStringElement = typeof component === 'string';
-
-  if (!isStringElement) {
-    // For React components, wrap directly preserving their props
-    const Wrapped: React.FC<any> = function(props) {
-      const mergedProps = {
-        ...defaultProps,
-        ...props,
-      };
-
-      return React.createElement(component, mergedProps);
-    };
-
-    const componentName = component.displayName || component.name || 'Component';
-    Wrapped.displayName = `${componentName}.withProps(${JSON.stringify(defaultProps)})`;
-
-    return Object.assign(Wrapped, {
-      withProps(this: any, newDefaults: any): any {
-        return withProps(this, newDefaults);
-      },
-    });
-  }
-
-  // For string elements, use polymorphic wrapper
-  const Wrapped = forwardRef<HTMLElement, Props<'div'> & any>(function BoxWithProps(
+function withProps<D extends Record<string, unknown>>(component, defaultProps: D): WithPropsReturnType<D> {
+  const Wrapped = forwardRef<HTMLElement, Props<'div'> & D>(function BoxWithProps(
     { as: asProp, children, ...props },
     ref,
   ) {
-    const Component = (asProp || (defaultProps.as as ElementType) || component || 'div') as ElementType;
+    // Use passed 'as' prop, or default to defaultProps.as, fallback to 'div'
+    const Component = (asProp || (defaultProps.as as ElementType) || 'div') as ElementType;
 
+    // Merge props: passed props override default props
     const mergedProps = {
       ...defaultProps,
       ...props,
+      // Ensure 'as' prop is handled correctly
       ...(asProp !== undefined && { as: asProp }),
     };
 
@@ -94,11 +65,15 @@ function withProps(component: any, defaultProps: any): any {
     );
   });
 
-  Wrapped.displayName = `Box.withProps(${JSON.stringify(defaultProps)})`;
+  Wrapped.displayName = `${component.displayName || 'Box'}.withProps(${JSON.stringify(defaultProps)})`;
 
-  return Object.assign(Wrapped, {
-    withProps(this: any, newDefaults: any): any {
-      return withProps(this, newDefaults);
+  // Chain withProps method to the new component
+  return Object.assign(Wrapped as unknown as WithPropsReturnType<D>, {
+    withProps<D2 extends Record<string, unknown>>(
+      this: WithPropsReturnType<D>,
+      defaultProps: D2,
+    ): WithPropsReturnType<D2> {
+      return withProps(this, defaultProps);
     },
   });
 }
