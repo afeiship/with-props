@@ -10,12 +10,14 @@ export interface PolymorphicProps<C extends ElementType> {
 
 /**
  * Computes complete props type for a given component type.
+ * Combines custom props with native component props, omitting conflicting keys.
  */
 export type Props<C extends ElementType> = PolymorphicProps<C> &
   Omit<React.ComponentPropsWithoutRef<C>, keyof PolymorphicProps<C>>;
 
 /**
  * Return type for components created with withProps.
+ * Supports polymorphic 'as' prop with proper type inference.
  */
 export type WithPropsReturnType<D extends Record<string, unknown>> = (<C extends ElementType = 'div'>(
   props: D extends { as: infer DefaultAs }
@@ -35,11 +37,11 @@ export type WithPropsReturnType<D extends Record<string, unknown>> = (<C extends
  * Creates a polymorphic component with default props.
  * @param component - The component to wrap.
  * @param defaultProps - Default props to apply.
- * @returns A new component with merged default props.
+ * @returns A new component with merged default props and chained withProps method.
  * @example
  * ```tsx
  * const Box = withProps('div', { className: 'box' });
- * <Box as="section" className="custom" />
+ * <Box as="button" className="custom" />
  * ```
  */
 function withProps<D extends Record<string, unknown>>(component, defaultProps: D): WithPropsReturnType<D> {
@@ -49,6 +51,16 @@ function withProps<D extends Record<string, unknown>>(component, defaultProps: D
   ) {
     // Use passed 'as' prop, or default to defaultProps.as, fallback to 'div'
     const Component = (asProp || (defaultProps.as as ElementType) || 'div') as ElementType;
+
+    // Special handling for Fragment: only pass key and children
+    // Check if component is Fragment (by comparing references)
+    const isFragment = Component === React.Fragment ||
+      (typeof Component === 'object' && Component !== null && '$$typeof' in Component &&
+        (Component as any).$$typeof === Symbol.for('react.fragment'));
+
+    if (isFragment) {
+      return <Component {...(props as { key?: string })}>{children}</Component>;
+    }
 
     // Merge props: passed props override default props
     const mergedProps = {
@@ -67,7 +79,7 @@ function withProps<D extends Record<string, unknown>>(component, defaultProps: D
 
   Wrapped.displayName = `${component.displayName || 'Box'}.withProps(${JSON.stringify(defaultProps)})`;
 
-  // Chain withProps method to the new component
+  // Chain withProps method to enable recursive composition
   return Object.assign(Wrapped as unknown as WithPropsReturnType<D>, {
     withProps<D2 extends Record<string, unknown>>(
       this: WithPropsReturnType<D>,

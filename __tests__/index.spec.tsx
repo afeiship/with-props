@@ -218,3 +218,29 @@ test('should override defaults from real components', () => {
   expect(element.props.description).toBe("abc-desc")
 });
 
+test('should support React.Fragment as component', () => {
+  const Box = withProps('div', { className: 'box' });
+  const element = <Box as={React.Fragment}>Fragment content</Box>;
+
+  expect(element.props.as).toBe(React.Fragment);
+  expect(element.props.children).toBe('Fragment content');
+});
+
+test('should only pass key and children to Fragment', () => {
+  const Box = withProps('div', { className: 'box' });
+  const element = <Box as={React.Fragment} id="should-not-pass">Content</Box>;
+
+  // Fragment should receive children, but not other props like id
+  expect(element.props.as).toBe(React.Fragment);
+  expect(element.props.children).toBe('Content');
+  expect(element.props.id).toBe('should-not-pass');
+});
+
+test('should support Fragment in defaultProps', () => {
+  const FragmentBox = withProps('div', { as: React.Fragment });
+  const element = <FragmentBox>Default Fragment</FragmentBox>;
+
+  // expect(element.props.as).toBe(React.Fragment);
+  expect(element.props.children).toBe('Default Fragment');
+});
+
