@@ -1,0 +1,212 @@
+# with-props
+> with-props is a lightweight React utility library for creating polymorphic components with preset default properties. It provides a simple yet powerful way to enhance any React component with default props while maintaining full type safety and supporting polymorphic behavior through the `as` prop.
+
+The library is designed for developers who want to create reusable component variants without boilerplate code. It features full TypeScript support, props merging, chainable API, and zero dependencies.
+
+**Important notes for agents:**
+- with-props exports a default function `withProps` that creates enhanced components
+- Components created with `withProps` support the `as` prop for polymorphic behavior
+- The `.withProps()` method can be chained to create multiple variants
+- All types are exported: `PolymorphicProps`, `Props`, `WithPropsReturnType`
+- Default props are automatically overridden by explicitly provided props
+- The library is framework-agnostic and works with Next.js, Remix, Vite, and other React frameworks
+
+## Documentation
+- [NPM Package](https://www.npmjs.org/package/@jswork/with-props): Official package page with installation instructions and version history.
+- [GitHub Repository](https://github.com/afeiship/with-props): Source code, issues, and contribution guidelines.
+- [README](README.md): Basic usage examples and feature overview.
+
+## Key Features
+- **Type Safe:** Full TypeScript support with proper type inference for polymorphic components
+- **Props Merging:** Default props are intelligently merged and overridden by provided props
+- **Polymorphic Components:** Support for `as` prop to change the rendered element type
+- **Chainable API:** Use `.withProps()` method to create multiple variants
+- **Zero Dependencies:** Lightweight (~1KB) with no external dependencies
+- **Fragment Support:** Special handling for React.Fragment to only pass valid props
+- **Framework Agnostic:** Works with Next.js, Remix, Vite, and other React frameworks
+
+## Installation
+
+### NPM
+```bash
+npm install @jswork/with-props
+```
+
+### Yarn
+```bash
+yarn add @jswork/with-props
+```
+
+### PNPM
+```bash
+pnpm add @jswork/with-props
+```
+
+## Core API
+
+### withProps(component, defaultProps)
+Creates a new component with default props applied.
+
+**Parameters:**
+- `component`: The base component to wrap (can be a string tag name, React component, or another withProps component)
+- `defaultProps`: Default props to apply to the component
+
+**Returns:** A new React component with merged default props and a chainable `.withProps()` method
+
+**Example:**
+```tsx
+import withProps from '@jswork/with-props';
+
+const Box = withProps('div', { className: 'box', padding: '1rem' });
+// Renders: <div class="box" style="padding: 1rem">...</div>
+```
+
+## TypeScript Types
+
+### PolymorphicProps<C>
+Base props for polymorphic components. Includes:
+- `as?: C`: The component type to render
+- `children?: React.ReactNode`: Child elements
+
+### Props<C>
+Computes complete props type for a given component type. Combines custom props with native component props, omitting conflicting keys.
+
+### WithPropsReturnType<D>
+Return type for components created with withProps. Supports:
+- Polymorphic `as` prop with proper type inference
+- `displayName?: string`: Component display name for debugging
+- `withProps<D2>()`: Chainable method for creating variants
+
+## Usage Patterns
+
+### Basic Usage
+```tsx
+import withProps from '@jswork/with-props';
+
+const Card = withProps('div', {
+  className: 'card',
+  style: { padding: '1rem', borderRadius: '8px' }
+});
+
+// Usage
+<Card>Default card</Card>
+<Card className="custom">Custom class overrides default</Card>
+```
+
+### Polymorphic Components
+```tsx
+const Box = withProps('div', { className: 'box' });
+
+// Renders as div
+<Box>Default</Box>
+
+// Renders as button
+<Box as="button">Button</Box>
+
+// Renders as anchor
+<Box as="a" href="https://example.com">Link</Box>
+```
+
+### Chainable Variants
+```tsx
+const BaseButton = withProps('button', {
+  className: 'btn',
+  style: { padding: '0.5rem 1rem' }
+});
+
+const PrimaryButton = BaseButton.withProps({
+  className: 'btn btn-primary',
+  style: { backgroundColor: 'blue', color: 'white' }
+});
+
+const DangerButton = BaseButton.withProps({
+  className: 'btn btn-danger',
+  style: { backgroundColor: 'red', color: 'white' }
+});
+```
+
+### With Custom Components
+```tsx
+interface ButtonProps {
+  text: string;
+  color?: string;
+  size?: 'small' | 'medium' | 'large';
+}
+
+const Button: React.FC<ButtonProps> = ({ text, color, size }) => {
+  return (
+    <button style={{ color, fontSize: size === 'small' ? '12px' : '16px' }}>
+      {text}
+    </button>
+  );
+};
+
+const PrimaryButton = withProps(Button, {
+  color: 'blue',
+  size: 'medium'
+});
+```
+
+### Fragment Support
+```tsx
+const FragmentWrapper = withProps(React.Fragment, {});
+
+// Only valid props (key) are passed to Fragment
+<FragmentWrapper key="unique">Content</FragmentWrapper>
+```
+
+## Props Merging Behavior
+
+Props are merged with the following priority (highest to lowest):
+1. Explicitly provided props when rendering the component
+2. Props from intermediate `.withProps()` calls (in order)
+3. Original `defaultProps` from the initial `withProps()` call
+
+**Example:**
+```tsx
+const Base = withProps('div', { className: 'base', id: 'root' });
+const Variant = Base.withProps({ className: 'variant' });
+
+// Result: className="custom" id="root" data-test="1"
+// Priority: custom > variant > base
+<Variant className="custom" data-test="1" />
+```
+
+## Usage Notes for Agents
+
+- **Default Export:** The library exports a default function. Use `import withProps from '@jswork/with-props'`
+- **Type Imports:** Types are available as named exports: `import type { PolymorphicProps, Props, WithPropsReturnType } from '@jswork/with-props'`
+- **Polymorphic Behavior:** Always support the `as` prop in components created with `withProps()`
+- **Type Inference:** When using `as` prop, types are automatically inferred for the target element
+- **Chainable:** Use `.withProps()` to create component variants without re-wrapping
+- **Fragment Handling:** When `as` is set to `React.Fragment`, only `key` and `children` props are passed
+- **Peer Dependency:** React 18+ is required as a peer dependency
+- **Bundle Size:** The library is approximately 1KB minified and has zero runtime dependencies
+
+## Common Use Cases
+
+### Design System Variants
+```tsx
+const BaseBox = withProps('div', { className: 'box' });
+const PrimaryBox = BaseBox.withProps({ className: 'box box-primary' });
+const SecondaryBox = BaseBox.withProps({ className: 'box box-secondary' });
+```
+
+### Layout Components
+```tsx
+const Container = withProps('div', { className: 'container', maxWidth: '1200px' });
+const Section = withProps('section', { className: 'section', padding: '2rem' });
+```
+
+### Form Components
+```tsx
+const BaseInput = withProps('input', { className: 'input', type: 'text' });
+const EmailInput = BaseInput.withProps({ type: 'email' });
+const PasswordInput = BaseInput.withProps({ type: 'password' });
+```
+
+## Development
+
+The library is built with TypeScript and compiled using tsup. Source files are located in `src/` and compiled outputs are in `dist/`.
+
+For contributions, issues, or feature requests, please visit the [GitHub repository](https://github.com/afeiship/with-props).
