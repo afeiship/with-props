@@ -5,12 +5,16 @@ The library is designed for developers who want to create reusable component var
 
 **Important notes for agents:**
 - with-props exports a default function `withProps` that creates enhanced components
+- The first parameter can be: React component, intrinsic element string ('div', 'span', 'button', etc.), or another withProps component
 - The `.withProps()` method can be chained to create multiple variants
-- Types exported: `WithPropsReturnType`, `WithDefaultProps`, `ExtractProps`
+- Types exported: `WithPropsReturnType`, `WithDefaultProps`, `ExtractProps`, `RefType`
 - Default props are automatically overridden by explicitly provided props
-- `displayName` format: `${component.displayName || 'Component'}.withProps`
+- `displayName` format:
+  - For string elements: `${elementName}.withProps` (e.g., "div.withProps")
+  - For components: `${component.displayName || component.name || 'Component'}.withProps`
 - Each chained `.withProps()` call appends another `.withProps` suffix
-- The library uses `forwardRef` for automatic ref forwarding
+- The library uses `forwardRef` for automatic ref forwarding with proper type inference
+- String elements preserve their ref types (e.g., HTMLDivElement for 'div')
 - The library is framework-agnostic and works with Next.js, Remix, Vite, and other React frameworks
 
 ## Documentation
@@ -20,6 +24,8 @@ The library is designed for developers who want to create reusable component var
 
 ## Key Features
 - **Type Safe:** Full TypeScript support with proper type inference for component props
+- **String Elements Support:** Use intrinsic element strings like 'div', 'span', 'button' directly
+- **Smart Ref Types:** Preserves correct ref types for string elements (e.g., HTMLDivElement for 'div')
 - **Props Merging:** Default props are intelligently merged and overridden by provided props
 - **Chainable API:** Use `.withProps()` method to create multiple variants
 - **Zero Dependencies:** Lightweight (~1KB) with no external dependencies
@@ -48,39 +54,69 @@ pnpm add @jswork/with-props
 Creates a new component with default props applied.
 
 **Parameters:**
-- `component`: The base component to wrap (can be a string tag name, React component, or another withProps component)
+- `component`: The base component to wrap. Can be:
+  - **Intrinsic element string**: 'div', 'span', 'button', 'a', 'input', etc.
+  - **React component**: Functional component, class component, or forwarded component
+  - **withProps component**: Another withProps-wrapped component for chaining
 - `defaultProps`: Default props to apply to the component
 
 **Returns:** A new React component with merged default props and a chainable `.withProps()` method
 
-**Example:**
+**Examples:**
+
 ```tsx
 import withProps from '@jswork/with-props';
 
+// With string elements
 const Box = withProps('div', { className: 'box', padding: '1rem' });
 // Renders: <div class="box" style="padding: 1rem">...</div>
+
+const PrimaryButton = withProps('button', {
+  className: 'btn btn-primary',
+  type: 'button'
+});
+
+// With React components
+const Card = ({ title, children }) => (
+  <div className="card">
+    <h2>{title}</h2>
+    {children}
+  </div>
+);
+
+const DefaultCard = withProps(Card, { title: 'Default Title' });
 ```
 
 ## TypeScript Types
 
 ### WithPropsReturnType<P, D>
 Return type for components created with withProps. Includes:
-- The wrapped React.ForwardRefExoticComponent
+- The wrapped React.ForwardRefExoticComponent with proper ref type inference
 - `displayName?: string`: Component display name for debugging
 - `withProps<D2>()`: Chainable method for creating variants
+- Properly typed ref that preserves the original element's ref type
 
 ### WithDefaultProps<T, D>
 Merges original props with default props while preserving optionality. Ensures that default props don't make existing required props optional.
 
 ### ExtractProps<T>
-Extracts props type from a component. Works with React.ComponentType and other component types.
+Extracts props type from a component or intrinsic element string. Works with:
+- React.ComponentType (functional and class components)
+- Intrinsic element strings ('div', 'span', 'button', etc.) - extracts JSX.IntrinsicElements[T]
+
+### RefType<T>
+Helper type that extracts the ref type from props. For example:
+- 'div' → RefObject<HTMLDivElement>
+- 'button' → RefObject<HTMLButtonElement>
+- Custom components → their defined ref type
 
 ## Usage Patterns
 
-### Basic Usage
+### Basic Usage with String Elements
 ```tsx
 import withProps from '@jswork/with-props';
 
+// Using intrinsic element strings
 const Card = withProps('div', {
   className: 'card',
   style: { padding: '1rem', borderRadius: '8px' }
@@ -89,6 +125,22 @@ const Card = withProps('div', {
 // Usage
 <Card>Default card</Card>
 <Card className="custom">Custom class overrides default</Card>
+
+// Other common elements
+const PrimaryButton = withProps('button', {
+  className: 'btn btn-primary',
+  type: 'button' as const,
+});
+
+const ExternalLink = withProps('a', {
+  target: '_blank',
+  rel: 'noopener noreferrer',
+});
+
+const DefaultInput = withProps('input', {
+  type: 'text',
+  className: 'form-control',
+});
 ```
 
 ### Chainable Variants
@@ -206,16 +258,19 @@ const MyComponent = () => {
 
 Components automatically get descriptive `displayName` for debugging:
 
+**For string elements:**
 ```tsx
 const Box = withProps('div', { className: 'box' });
-// displayName: "Component.withProps" (string components have no displayName)
+// displayName: "div.withProps"
 
 const PrimaryBox = Box.withProps({ variant: 'primary' });
-// displayName: "Component.withProps.withProps"
+// displayName: "div.withProps.withProps"
+
+const Button = withProps('button', { className: 'btn' });
+// displayName: "button.withProps"
 ```
 
-For custom React components, the component's `displayName` is used:
-
+**For custom React components:**
 ```tsx
 const Card: React.FC<CardProps> = ({ ... }) => { ... };
 Card.displayName = 'Card';
@@ -227,7 +282,15 @@ const PrimaryCard = DefaultCard.withProps({ className: 'primary' });
 // displayName: "Card.withProps.withProps"
 ```
 
-**Note:** The displayName format is simplified to `${component.displayName || 'Component'}.withProps`, and each chained `.withProps()` call appends another `.withProps` suffix. The default props are not serialized in the displayName.
+**Components without displayName:**
+```tsx
+const AnonymousComponent = ({ children }) => <div>{children}</div>;
+
+const Wrapped = withProps(AnonymousComponent, { className: 'wrapped' });
+// displayName: "Component.withProps" (falls back to 'Component')
+```
+
+**Note:** The displayName format is `${displayName}.withProps` where displayName is the element name for strings, or `component.displayName || component.name || 'Component'` for React components. Each chained `.withProps()` call appends another `.withProps` suffix.
 
 ### Accessibility Features
 
@@ -331,19 +394,26 @@ console.log(PrimaryBox.displayName);
 ### Complete Type Definitions
 
 ```typescript
+/** Extract the ref type from props. */
+type RefType<T> = T extends { ref?: infer R } ? R : unknown;
+
 /** Merges original props with default props, keeping optionality. */
 type WithDefaultProps<T, D> = Omit<T, keyof D> & {
   [K in keyof D]?: K extends keyof T ? NonNullable<T[K]> | D[K] : D[K];
 };
 
-/** Extracts props type from a component. */
-type ExtractProps<T> = T extends React.ComponentType<infer P> ? P : Record<string, unknown>;
+/** Extracts props type from a component or intrinsic element string. */
+type ExtractProps<T> = T extends React.ComponentType<infer P>
+  ? P
+  : T extends keyof JSX.IntrinsicElements
+    ? JSX.IntrinsicElements[T]
+    : Record<string, unknown>;
 
 /**
  * Return type for React components with withProps method.
  * This type allows chaining while preserving the original component's props.
  */
-export type WithPropsReturnType<P, D extends Record<string, unknown>> = React.ForwardRefExoticComponent<WithDefaultProps<P, D> & { ref?: React.Ref<unknown> }> & {
+export type WithPropsReturnType<P, D extends Record<string, unknown>> = React.ForwardRefExoticComponent<WithDefaultProps<P, D> & { ref?: RefType<P> }> & {
   displayName?: string;
   withProps<D2 extends Record<string, unknown>>(
     this: WithPropsReturnType<P, any>,
@@ -353,11 +423,11 @@ export type WithPropsReturnType<P, D extends Record<string, unknown>> = React.Fo
 
 /**
  * Creates a new component with default props.
- * @param component - The original component
+ * @param component - The original component or intrinsic element string (e.g., 'div', 'span')
  * @param defaultProps - Default props to merge
  * @returns A new component with merged props and chainable withProps method
  */
-function withProps<C extends React.ComponentType<any>, D extends Record<string, unknown>>(
+function withProps<C extends React.ComponentType<any> | keyof JSX.IntrinsicElements, D extends Record<string, unknown>>(
   component: C,
   defaultProps: D,
 ): WithPropsReturnType<ExtractProps<C>, D>;
@@ -374,15 +444,57 @@ const SecondaryBox = BaseBox.withProps({ className: 'box box-secondary' });
 
 ### Layout Components
 ```tsx
-const Container = withProps('div', { className: 'container', maxWidth: '1200px' });
-const Section = withProps('section', { className: 'section', padding: '2rem' });
+const Container = withProps('div', {
+  className: 'container',
+  style: { maxWidth: '1200px', margin: '0 auto', padding: '0 1rem' }
+});
+
+const Section = withProps('section', {
+  className: 'section',
+  style: { padding: '2rem 0' }
+});
+
+const Flex = withProps('div', {
+  className: 'flex',
+  style: { display: 'flex' }
+});
+
+const Grid = withProps('div', {
+  className: 'grid',
+  style: { display: 'grid' }
+});
 ```
 
 ### Form Components
 ```tsx
-const BaseInput = withProps('input', { className: 'input', type: 'text' });
+const BaseInput = withProps('input', {
+  className: 'input',
+  type: 'text'
+});
+
 const EmailInput = BaseInput.withProps({ type: 'email' });
 const PasswordInput = BaseInput.withProps({ type: 'password' });
+const NumberInput = BaseInput.withProps({ type: 'number' });
+
+const Textarea = withProps('textarea', {
+  className: 'textarea',
+  rows: 4
+});
+
+const Select = withProps('select', {
+  className: 'select'
+});
+
+// Form labels and helpers
+const Label = withProps('label', {
+  className: 'label',
+  style: { display: 'block', marginBottom: '0.5rem' }
+});
+
+const FormHelper = withProps('small', {
+  className: 'form-helper',
+  style: { color: '#6b7280', fontSize: '0.875rem' }
+});
 ```
 
 ### Button Variants System
@@ -407,10 +519,35 @@ const DangerButton = BaseButton.withProps({
   variant: 'danger' as const,
 });
 
+const SuccessButton = BaseButton.withProps({
+  className: 'btn btn-success',
+  variant: 'success' as const,
+});
+
+// Size variants
+const SmallButton = BaseButton.withProps({
+  className: 'btn btn-sm',
+  style: { padding: '0.25rem 0.5rem', fontSize: '0.875rem' }
+});
+
+const LargeButton = BaseButton.withProps({
+  className: 'btn btn-lg',
+  style: { padding: '0.75rem 1.5rem', fontSize: '1.125rem' }
+});
+
+// Combined variants
+const PrimaryLargeButton = PrimaryButton.withProps({
+  className: 'btn btn-primary btn-lg'
+});
+
 // Usage
 <PrimaryButton>Submit</PrimaryButton>
 <SecondaryButton>Cancel</SecondaryButton>
 <DangerButton>Delete</DangerButton>
+<SuccessButton>Confirm</SuccessButton>
+<SmallButton>Small</SmallButton>
+<LargeButton>Large</LargeButton>
+<PrimaryLargeButton>Submit (Large)</PrimaryLargeButton>
 ```
 
 ### Layout System
@@ -480,6 +617,202 @@ const MutedText = BaseText.withProps({
   className: 'text-muted',
   style: { color: '#6b7280' },
 });
+```
+
+## String Elements Support
+
+### Available Intrinsic Elements
+
+`withProps` supports all HTML intrinsic elements. Common examples include:
+
+**Container elements:**
+- `'div'`, `'span'`, `'section'`, `'article'`, `'header'`, `'footer'`, `'main'`, `'aside'`
+
+**Text elements:**
+- `'h1'`, `'h2'`, `'h3'`, `'h4'`, `'h5'`, `'h6'`, `'p'`, `'strong'`, `'em'`, `'code'`
+
+**Form elements:**
+- `'input'`, `'textarea'`, `'select'`, `'option'`, `'button'`, `'label'`
+
+**Link and media:**
+- `'a'`, `'img'`, `'video'`, `'audio'`, `'canvas'`, `'svg'`
+
+**List elements:**
+- `'ul'`, `'ol'`, `'li'`, `'dl'`, `'dt'`, `'dd'`
+
+**Table elements:**
+- `'table'`, `'thead'`, `'tbody'`, `'tr'`, `'th'`, `'td'`
+
+### String Elements Examples
+
+**Basic styling:**
+```tsx
+const Container = withProps('div', {
+  className: 'container',
+  style: { maxWidth: '1200px', margin: '0 auto' }
+});
+
+const Box = withProps('div', {
+  className: 'box',
+  style: { padding: '1rem', border: '1px solid #ccc' }
+});
+
+const Text = withProps('p', {
+  className: 'text',
+  style: { lineHeight: 1.6, color: '#333' }
+});
+```
+
+**Semantic HTML:**
+```tsx
+const Article = withProps('article', {
+  className: 'article',
+  itemProp: 'blogPost',
+  itemScope: true,
+  itemType: 'https://schema.org/BlogPosting'
+});
+
+const Section = withProps('section', {
+  className: 'section',
+  ariaRole: 'region'
+});
+
+const Navigation = withProps('nav', {
+  className: 'navigation',
+  ariaLabel: 'Main navigation'
+});
+```
+
+**Typography:**
+```tsx
+const Heading1 = withProps('h1', {
+  className: 'text-3xl font-bold',
+  style: { fontSize: '2.25rem', fontWeight: 'bold', margin: 0 }
+});
+
+const Heading2 = withProps('h2', {
+  className: 'text-2xl font-semibold',
+  style: { fontSize: '1.875rem', fontWeight: 600, margin: 0 }
+});
+
+const Paragraph = withProps('p', {
+  className: 'text-base leading-relaxed',
+  style: { lineHeight: 1.625, margin: '0.5rem 0' }
+});
+
+const Code = withProps('code', {
+  className: 'bg-gray-100 px-1 py-0.5 rounded text-sm',
+  style: { fontFamily: 'monospace', backgroundColor: '#f3f4f6' }
+});
+```
+
+**Links and buttons:**
+```tsx
+const ExternalLink = withProps('a', {
+  target: '_blank',
+  rel: 'noopener noreferrer',
+  className: 'external-link'
+});
+
+const DownloadLink = withProps('a', {
+  download: true,
+  className: 'download-link'
+});
+
+const PrimaryButton = withProps('button', {
+  type: 'button' as const,
+  className: 'btn btn-primary'
+});
+
+const SubmitButton = withProps('button', {
+  type: 'submit' as const,
+  className: 'btn btn-submit'
+});
+
+const ResetButton = withProps('button', {
+  type: 'reset' as const,
+  className: 'btn btn-reset'
+});
+```
+
+**Form elements:**
+```tsx
+const TextInput = withProps('input', {
+  type: 'text',
+  className: 'input input-text'
+});
+
+const EmailInput = withProps('input', {
+  type: 'email',
+  className: 'input input-email',
+  required: true
+});
+
+const PasswordInput = withProps('input', {
+  type: 'password',
+  className: 'input input-password',
+  minLength: 8
+});
+
+const SearchInput = withProps('input', {
+  type: 'search',
+  className: 'input input-search',
+  placeholder: 'Search...'
+});
+
+const CheckboxInput = withProps('input', {
+  type: 'checkbox',
+  className: 'input input-checkbox'
+});
+
+const RadioInput = withProps('input', {
+  type: 'radio',
+  className: 'input input-radio'
+});
+
+const FileInput = withProps('input', {
+  type: 'file',
+  className: 'input input-file'
+});
+```
+
+### Type Inference for String Elements
+
+When using string elements, TypeScript automatically infers the correct props type:
+
+```tsx
+// TypeScript knows this is an HTMLDivElement
+const Div = withProps('div', { className: 'div' });
+type DivProps = React.ComponentProps<typeof Div>;
+// DivProps includes: className, id, style, onClick, etc.
+
+// TypeScript knows this is an HTMLButtonElement
+const Button = withProps('button', { type: 'button' });
+type ButtonProps = React.ComponentProps<typeof Button>;
+// ButtonProps includes: type, disabled, form, etc.
+
+// TypeScript knows this is an HTMLAnchorElement
+const Link = withProps('a', { href: '#' });
+type LinkProps = React.ComponentProps<typeof Link>;
+// LinkProps includes: href, target, download, etc.
+```
+
+### Ref Types for String Elements
+
+String elements preserve their correct ref types:
+
+```tsx
+const Div = withProps('div', { className: 'div' });
+const ref = React.useRef<HTMLDivElement>(null);
+<Div ref={ref}>Content</Div> // ✅ Correct type
+
+const Button = withProps('button', { type: 'button' });
+const buttonRef = React.useRef<HTMLButtonElement>(null);
+<Button ref={buttonRef}>Click</Button> // ✅ Correct type
+
+const Input = withProps('input', { type: 'text' });
+const inputRef = React.useRef<HTMLInputElement>(null);
+<Input ref={inputRef} /> // ✅ Correct type
 ```
 
 ## Best Practices
@@ -804,4 +1137,4 @@ See [GitHub Releases](https://github.com/afeiship/with-props/releases) for versi
 ---
 
 **Last Updated**: 2026-03-28
-**Version**: 1.1.10
+**Version**: 1.1.13
