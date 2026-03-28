@@ -1,15 +1,14 @@
 # with-props
-> with-props is a lightweight React utility library for creating polymorphic components with preset default properties. It provides a simple yet powerful way to enhance any React component with default props while maintaining full type safety and supporting polymorphic behavior through the `as` prop.
+> with-props is a lightweight React utility library for creating components with preset default properties. It provides a simple yet powerful way to enhance any React component with default props while maintaining full type safety and supporting a chainable API.
 
-The library is designed for developers who want to create reusable component variants without boilerplate code. It features full TypeScript support, props merging, chainable API, and zero dependencies.
+The library is designed for developers who want to create reusable component variants without boilerplate code. It features full TypeScript support, intelligent props merging, chainable API, and zero dependencies.
 
 **Important notes for agents:**
 - with-props exports a default function `withProps` that creates enhanced components
-- Components created with `withProps` support the `as` prop for polymorphic behavior
 - The `.withProps()` method can be chained to create multiple variants
-- All types are exported: `PolymorphicProps`, `Props`, `WithPropsReturnType`, `WithDefaultProps`, `ExtractProps`
+- Types exported: `WithPropsReturnType`, `WithDefaultProps`, `ExtractProps`
 - Default props are automatically overridden by explicitly provided props
-- `displayName` uses simplified format: `${component.displayName || 'Component'}.withProps`
+- `displayName` format: `${component.displayName || 'Component'}.withProps`
 - Each chained `.withProps()` call appends another `.withProps` suffix
 - The library uses `forwardRef` for automatic ref forwarding
 - The library is framework-agnostic and works with Next.js, Remix, Vite, and other React frameworks
@@ -20,12 +19,10 @@ The library is designed for developers who want to create reusable component var
 - [README](README.md): Basic usage examples and feature overview.
 
 ## Key Features
-- **Type Safe:** Full TypeScript support with proper type inference for polymorphic components
+- **Type Safe:** Full TypeScript support with proper type inference for component props
 - **Props Merging:** Default props are intelligently merged and overridden by provided props
-- **Polymorphic Components:** Support for `as` prop to change the rendered element type
 - **Chainable API:** Use `.withProps()` method to create multiple variants
 - **Zero Dependencies:** Lightweight (~1KB) with no external dependencies
-- **Fragment Support:** Special handling for React.Fragment to only pass valid props
 - **Framework Agnostic:** Works with Next.js, Remix, Vite, and other React frameworks
 
 ## Installation
@@ -66,17 +63,9 @@ const Box = withProps('div', { className: 'box', padding: '1rem' });
 
 ## TypeScript Types
 
-### PolymorphicProps<C>
-Base props for polymorphic components. Includes:
-- `as?: C`: The component type to render
-- `children?: React.ReactNode`: Child elements
-
-### Props<C>
-Computes complete props type for a given component type. Combines custom props with native component props, omitting conflicting keys.
-
-### WithPropsReturnType<D>
-Return type for components created with withProps. Supports:
-- Polymorphic `as` prop with proper type inference
+### WithPropsReturnType<P, D>
+Return type for components created with withProps. Includes:
+- The wrapped React.ForwardRefExoticComponent
 - `displayName?: string`: Component display name for debugging
 - `withProps<D2>()`: Chainable method for creating variants
 
@@ -84,7 +73,7 @@ Return type for components created with withProps. Supports:
 Merges original props with default props while preserving optionality. Ensures that default props don't make existing required props optional.
 
 ### ExtractProps<T>
-Extracts props type from a component. Works with React.ComponentType, JSXElementConstructor, and other component types.
+Extracts props type from a component. Works with React.ComponentType and other component types.
 
 ## Usage Patterns
 
@@ -100,20 +89,6 @@ const Card = withProps('div', {
 // Usage
 <Card>Default card</Card>
 <Card className="custom">Custom class overrides default</Card>
-```
-
-### Polymorphic Components
-```tsx
-const Box = withProps('div', { className: 'box' });
-
-// Renders as div
-<Box>Default</Box>
-
-// Renders as button
-<Box as="button">Button</Box>
-
-// Renders as anchor
-<Box as="a" href="https://example.com">Link</Box>
 ```
 
 ### Chainable Variants
@@ -154,14 +129,6 @@ const PrimaryButton = withProps(Button, {
   color: 'blue',
   size: 'medium'
 });
-```
-
-### Fragment Support
-```tsx
-const FragmentWrapper = withProps(React.Fragment, {});
-
-// Only valid props (key) are passed to Fragment
-<FragmentWrapper key="unique">Content</FragmentWrapper>
 ```
 
 ## Props Merging Behavior
@@ -235,21 +202,6 @@ const MyComponent = () => {
 };
 ```
 
-### Fragment Special Handling
-
-When using `React.Fragment` as the component type, only valid Fragment props (`key` and `children`) are passed:
-
-```tsx
-const Box = withProps('div', { className: 'box' });
-
-// Only key and children will be passed to Fragment
-<Box as={React.Fragment} key="unique">
-  Content
-</Box>
-```
-
-**Note:** When `as` is set to `React.Fragment`, props like `className`, `id`, `style`, etc. are ignored since Fragment doesn't accept them.
-
 ### Display Name Generation
 
 Components automatically get descriptive `displayName` for debugging:
@@ -295,20 +247,14 @@ const AccessibleBox = withProps('div', {
 ## Usage Notes for Agents
 
 - **Default Export:** The library exports a default function. Use `import withProps from '@jswork/with-props'`
-- **Type Imports:** Types are available as named exports: `import type { PolymorphicProps, Props, WithPropsReturnType, WithDefaultProps, ExtractProps } from '@jswork/with-props'`
-- **Polymorphic Behavior:** Always support the `as` prop in components created with `withProps()`
-- **Type Inference:** When using `as` prop, types are automatically inferred for the target element
+- **Type Imports:** Types are available as named exports: `import type { WithPropsReturnType, WithDefaultProps, ExtractProps } from '@jswork/with-props'`
 - **Chainable:** Use `.withProps()` to create component variants without re-wrapping
-- **Fragment Handling:** When `as` is set to `React.Fragment`, only `key` and `children` props are passed
 - **Ref Forwarding:** Components created with `withProps` use `forwardRef` for automatic ref forwarding
-- **Display Name:** Format is `${component.displayName || 'Component'}.withProps` (props are not serialized)
+- **Display Name:** Format is `${component.displayName || 'Component'}.withProps`
 - **Peer Dependency:** React 18+ is required as a peer dependency
 - **Bundle Size:** The library is approximately 1KB minified and has zero runtime dependencies
 
 ## FAQ & Troubleshooting
-
-### Q: Why are my props not being applied to Fragment?
-**A:** React.Fragment only accepts `key` and `children` props. When using `as={React.Fragment}`, other props like `className`, `id`, or `style` are intentionally ignored by the library.
 
 ### Q: Can I use withProps with class components?
 **A:** Yes, `withProps` works with both functional components and class components:
@@ -321,29 +267,6 @@ class MyClassComponent extends React.Component<MyProps> {
 const DefaultMyComponent = withProps(MyClassComponent, {
   someProp: 'default'
 });
-```
-
-### Q: How does type inference work with the `as` prop?
-**A:** When you specify `as="button"`, TypeScript automatically infers the props for a `button` element. This provides full type safety and autocomplete:
-
-```tsx
-const Box = withProps('div', { className: 'box' });
-
-// TypeScript knows this accepts button-specific props
-<Box as="button" type="submit" formAction="/submit">
-  Submit
-</Box>
-```
-
-### Q: Can I override the `as` prop in defaultProps?
-**A:** Yes, you can set a default `as` prop, but it can still be overridden when rendering:
-
-```tsx
-// Default to 'a' tag
-const Link = withProps('div', { as: 'a' });
-
-// Override to button
-<Link as="button">Click me</Link>
 ```
 
 ### Q: How do I handle ref with custom components?
@@ -408,51 +331,36 @@ console.log(PrimaryBox.displayName);
 ### Complete Type Definitions
 
 ```typescript
-// Base props for polymorphic components
-interface PolymorphicProps<C extends ElementType> {
-  as?: C;
-  children?: React.ReactNode;
-}
-
-// Complete props type for a component
-type Props<C extends ElementType> = PolymorphicProps<C> &
-  Omit<React.ComponentPropsWithoutRef<C>, keyof PolymorphicProps<C>>;
-
-// Return type for withProps
-type WithPropsReturnType<D extends Record<string, unknown>> = (<C extends ElementType = 'div'>(
-  props: D extends { as: infer DefaultAs }
-    ? DefaultAs extends ElementType
-      ? React.ComponentPropsWithoutRef<DefaultAs> & Omit<D, 'as'> & { as?: C; ref?: React.Ref<React.ComponentRef<C>> }
-      : Props<C> & D & { ref?: React.Ref<React.ComponentRef<C>> }
-    : Props<C> & D & { ref?: React.Ref<React.ComponentRef<C>> },
-) => React.ReactElement) & {
-  displayName?: string;
-  withProps<D2 extends Record<string, unknown>>(
-    this: WithPropsReturnType<D>,
-    defaultProps: D2,
-  ): WithPropsReturnType<D2>;
-};
-
-// Merges original props with default props, keeping optionality
+/** Merges original props with default props, keeping optionality. */
 type WithDefaultProps<T, D> = Omit<T, keyof D> & {
   [K in keyof D]?: K extends keyof T ? NonNullable<T[K]> | D[K] : D[K];
 };
 
-// Extracts props type from a component
-type ExtractProps<T> =
-  T extends React.ComponentType<infer P>
-    ? P
-    : T extends React.JSXElementConstructor<infer P>
-      ? P
-      : Record<string, unknown>;
+/** Extracts props type from a component. */
+type ExtractProps<T> = T extends React.ComponentType<infer P> ? P : Record<string, unknown>;
 
-// Function overloads
-function withProps<C extends React.ComponentType<any> & { withProps?: never }, D extends Record<string, unknown>>(
+/**
+ * Return type for React components with withProps method.
+ * This type allows chaining while preserving the original component's props.
+ */
+export type WithPropsReturnType<P, D extends Record<string, unknown>> = React.ForwardRefExoticComponent<WithDefaultProps<P, D> & { ref?: React.Ref<unknown> }> & {
+  displayName?: string;
+  withProps<D2 extends Record<string, unknown>>(
+    this: WithPropsReturnType<P, any>,
+    defaultProps: D2,
+  ): WithPropsReturnType<P, D & D2>;
+};
+
+/**
+ * Creates a new component with default props.
+ * @param component - The original component
+ * @param defaultProps - Default props to merge
+ * @returns A new component with merged props and chainable withProps method
+ */
+function withProps<C extends React.ComponentType<any>, D extends Record<string, unknown>>(
   component: C,
   defaultProps: D,
-): React.ComponentType<WithDefaultProps<ExtractProps<C>, D>>;
-
-function withProps<D extends Record<string, unknown>>(component: any, defaultProps: D): WithPropsReturnType<D>;
+): WithPropsReturnType<ExtractProps<C>, D>;
 ```
 
 ## Common Use Cases
@@ -658,29 +566,6 @@ export default BaseButton;
 ```
 
 ## Common Patterns
-
-### Conditional Props with Polymorphic Behavior
-```tsx
-const InteractiveBox = withProps('div', {
-  className: 'box',
-  style: { padding: '1rem', cursor: 'pointer' },
-});
-
-// Render as button when interaction is needed
-<InteractiveBox as="button" onClick={handleClick}>
-  Click me
-</InteractiveBox>
-
-// Render as link when navigation is needed
-<InteractiveBox as="a" href="/about">
-  About
-</InteractiveBox>
-
-// Render as div for static content
-<InteractiveBox>
-  Static content
-</InteractiveBox>
-```
 
 ### Theme-Aware Components
 ```tsx
