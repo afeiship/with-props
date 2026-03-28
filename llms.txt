@@ -7,8 +7,11 @@ The library is designed for developers who want to create reusable component var
 - with-props exports a default function `withProps` that creates enhanced components
 - Components created with `withProps` support the `as` prop for polymorphic behavior
 - The `.withProps()` method can be chained to create multiple variants
-- All types are exported: `PolymorphicProps`, `Props`, `WithPropsReturnType`
+- All types are exported: `PolymorphicProps`, `Props`, `WithPropsReturnType`, `WithDefaultProps`, `ExtractProps`
 - Default props are automatically overridden by explicitly provided props
+- `displayName` uses simplified format: `${component.displayName || 'Component'}.withProps`
+- Each chained `.withProps()` call appends another `.withProps` suffix
+- The library uses `forwardRef` for automatic ref forwarding
 - The library is framework-agnostic and works with Next.js, Remix, Vite, and other React frameworks
 
 ## Documentation
@@ -76,6 +79,12 @@ Return type for components created with withProps. Supports:
 - Polymorphic `as` prop with proper type inference
 - `displayName?: string`: Component display name for debugging
 - `withProps<D2>()`: Chainable method for creating variants
+
+### WithDefaultProps<T, D>
+Merges original props with default props while preserving optionality. Ensures that default props don't make existing required props optional.
+
+### ExtractProps<T>
+Extracts props type from a component. Works with React.ComponentType, JSXElementConstructor, and other component types.
 
 ## Usage Patterns
 
@@ -247,10 +256,10 @@ Components automatically get descriptive `displayName` for debugging:
 
 ```tsx
 const Box = withProps('div', { className: 'box' });
-// displayName: "Box.withProps({"className":"box"})"
+// displayName: "Component.withProps" (string components have no displayName)
 
 const PrimaryBox = Box.withProps({ variant: 'primary' });
-// displayName: "Box.withProps({"className":"box"}).withProps({"variant":"primary"})"
+// displayName: "Component.withProps.withProps"
 ```
 
 For custom React components, the component's `displayName` is used:
@@ -260,8 +269,13 @@ const Card: React.FC<CardProps> = ({ ... }) => { ... };
 Card.displayName = 'Card';
 
 const DefaultCard = withProps(Card, { variant: 'elevated' });
-// displayName: "Card.withProps({"variant":"elevated"})"
+// displayName: "Card.withProps"
+
+const PrimaryCard = DefaultCard.withProps({ className: 'primary' });
+// displayName: "Card.withProps.withProps"
 ```
+
+**Note:** The displayName format is simplified to `${component.displayName || 'Component'}.withProps`, and each chained `.withProps()` call appends another `.withProps` suffix. The default props are not serialized in the displayName.
 
 ### Accessibility Features
 
@@ -281,11 +295,13 @@ const AccessibleBox = withProps('div', {
 ## Usage Notes for Agents
 
 - **Default Export:** The library exports a default function. Use `import withProps from '@jswork/with-props'`
-- **Type Imports:** Types are available as named exports: `import type { PolymorphicProps, Props, WithPropsReturnType } from '@jswork/with-props'`
+- **Type Imports:** Types are available as named exports: `import type { PolymorphicProps, Props, WithPropsReturnType, WithDefaultProps, ExtractProps } from '@jswork/with-props'`
 - **Polymorphic Behavior:** Always support the `as` prop in components created with `withProps()`
 - **Type Inference:** When using `as` prop, types are automatically inferred for the target element
 - **Chainable:** Use `.withProps()` to create component variants without re-wrapping
 - **Fragment Handling:** When `as` is set to `React.Fragment`, only `key` and `children` props are passed
+- **Ref Forwarding:** Components created with `withProps` use `forwardRef` for automatic ref forwarding
+- **Display Name:** Format is `${component.displayName || 'Component'}.withProps` (props are not serialized)
 - **Peer Dependency:** React 18+ is required as a peer dependency
 - **Bundle Size:** The library is approximately 1KB minified and has zero runtime dependencies
 
@@ -380,11 +396,11 @@ export default function Page() {
 ```tsx
 const Box = withProps('div', { className: 'box' });
 console.log(Box.displayName);
-// Output: "Box.withProps({"className":"box"})"
+// Output: "Component.withProps"
 
 const PrimaryBox = Box.withProps({ variant: 'primary' });
 console.log(PrimaryBox.displayName);
-// Output: "Box.withProps({"className":"box"}).withProps({"variant":"primary"})"
+// Output: "Component.withProps.withProps"
 ```
 
 ## API Reference
@@ -403,26 +419,40 @@ type Props<C extends ElementType> = PolymorphicProps<C> &
   Omit<React.ComponentPropsWithoutRef<C>, keyof PolymorphicProps<C>>;
 
 // Return type for withProps
-type WithPropsReturnType<D extends Record<string, unknown>> = (
-  <C extends ElementType = 'div'>(
-    props: D extends { as: infer DefaultAs }
-      ? DefaultAs extends ElementType
-        ? React.ComponentPropsWithoutRef<DefaultAs> & Omit<D, 'as'> & { as?: C; ref?: React.Ref<React.ComponentRef<C>> }
-        : Props<C> & D & { ref?: React.Ref<React.ComponentRef<C>> }
-      : Props<C> & D & { ref?: React.Ref<React.ComponentRef<C>> },
-  ) => React.ReactElement
-) & {
+type WithPropsReturnType<D extends Record<string, unknown>> = (<C extends ElementType = 'div'>(
+  props: D extends { as: infer DefaultAs }
+    ? DefaultAs extends ElementType
+      ? React.ComponentPropsWithoutRef<DefaultAs> & Omit<D, 'as'> & { as?: C; ref?: React.Ref<React.ComponentRef<C>> }
+      : Props<C> & D & { ref?: React.Ref<React.ComponentRef<C>> }
+    : Props<C> & D & { ref?: React.Ref<React.ComponentRef<C>> },
+) => React.ReactElement) & {
   displayName?: string;
   withProps<D2 extends Record<string, unknown>>(
+    this: WithPropsReturnType<D>,
     defaultProps: D2,
   ): WithPropsReturnType<D2>;
 };
 
-// Main function
-function withProps<D extends Record<string, unknown>>(
-  component: ElementType,
-  defaultProps: D
-): WithPropsReturnType<D>;
+// Merges original props with default props, keeping optionality
+type WithDefaultProps<T, D> = Omit<T, keyof D> & {
+  [K in keyof D]?: K extends keyof T ? NonNullable<T[K]> | D[K] : D[K];
+};
+
+// Extracts props type from a component
+type ExtractProps<T> =
+  T extends React.ComponentType<infer P>
+    ? P
+    : T extends React.JSXElementConstructor<infer P>
+      ? P
+      : Record<string, unknown>;
+
+// Function overloads
+function withProps<C extends React.ComponentType<any> & { withProps?: never }, D extends Record<string, unknown>>(
+  component: C,
+  defaultProps: D,
+): React.ComponentType<WithDefaultProps<ExtractProps<C>, D>>;
+
+function withProps<D extends Record<string, unknown>>(component: any, defaultProps: D): WithPropsReturnType<D>;
 ```
 
 ## Common Use Cases

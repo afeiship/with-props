@@ -24,7 +24,7 @@ test('should support polymorphic as prop to change element type', () => {
   const Box = withProps('div', { className: 'box' });
 
   // Render as a button instead of div
-  const element = <Box as="button" type="submit">Click me</Box>;
+  const element = <Box className="test-btn" as="button" type="submit">Click me</Box>;
 
   expect(element.props.as).toBe('button');
   expect(element.props.type).toBe('submit');
@@ -82,7 +82,7 @@ test('should support forwardRef', () => {
 
   // Should be able to pass ref
   const ref = React.createRef<HTMLDivElement>();
-  const element = <Box ref={ref}>Hello</Box>;
+  const element = <Box className="test-btn-ref" ref={ref}>Hello</Box>;
 
   expect(element.props.children).toBe('Hello');
 });
@@ -94,7 +94,7 @@ test('should work with complex props', () => {
   });
 
   const element = (
-    <Card role="group" style={{ padding: '16px' }} aria-label="Card content">
+    <Card className="cls-name" role="group" style={{ padding: '16px' }} aria-label="Card content">
       Card content
     </Card>
   );
@@ -123,7 +123,7 @@ test('should preserve children', () => {
 test('should render with both as prop and custom props', () => {
   const Box = withProps('div', { className: 'box' });
 
-  const element = <Box as="button" type="submit" data-action="submit">Submit</Box>;
+  const element = <Box className="box-el" as="button" type="submit" data-action="submit">Submit</Box>;
 
   expect(element.props.as).toBe('button');
   expect(element.props.type).toBe('submit');
@@ -175,6 +175,30 @@ test('should work with real React components', () => {
   expect(element.props['data-testid']).toBe('card');
   expect(element.props.role).toBe('article');
   expect(element.props.children).toEqual(<p>Card content</p>);
+});
+
+test('should support chaining with real components', () => {
+  const PrimaryCard = withProps(Card, {
+    variant: 'elevated',
+  });
+
+  const StyledCard = PrimaryCard.withProps({
+    className: 'card-styled',
+  });
+
+  expect(PrimaryCard.displayName).toBe('Card.withProps');
+  expect(StyledCard.displayName).toBe('Card.withProps.withProps');
+
+  // Test that chaining works with standard props
+  const element = (
+    <StyledCard
+      id="my-card"
+      style={{ padding: '16px' }}
+    />
+  );
+
+  expect(element.props.id).toBe('my-card');
+  expect(element.props.style).toEqual({ padding: '16px' });
 });
 
 test('should override defaults from real components', () => {
