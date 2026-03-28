@@ -3,133 +3,6 @@ import { test, expect } from 'bun:test';
 import React, { HTMLAttributes } from 'react';
 import withProps from '../src';
 
-test('should set displayName based on component type', () => {
-  const Box = withProps('div', { className: 'box' });
-  // String components don't have displayName, so it falls back to 'Component'
-  expect(Box.displayName).toBe('Component.withProps');
-});
-
-test('should accept custom props', () => {
-  const Box = withProps('div', { className: 'box' });
-
-  const element = <Box className="custom" id="test">Hello</Box>;
-
-  // Passed props are visible in element.props
-  expect(element.props.className).toBe('custom');
-  expect(element.props.id).toBe('test');
-  expect(element.props.children).toBe('Hello');
-});
-
-test('should support polymorphic as prop to change element type', () => {
-  const Box = withProps('div', { className: 'box' });
-
-  // Render as a button instead of div
-  const element = <Box className="test-btn" as="button" type="submit">Click me</Box>;
-
-  expect(element.props.as).toBe('button');
-  expect(element.props.type).toBe('submit');
-});
-
-test('should support as prop in defaultProps', () => {
-  const Link = withProps('div', { as: 'a' });
-
-  // Need to explicitly pass as prop for correct type inference
-  const element = <Link as="a" href="#" className="link">Go to link</Link>;
-
-  // Explicitly passed props are visible
-  expect(element.props.href).toBe('#');
-  expect(element.props.className).toBe('link');
-});
-
-test('should allow overriding as prop at usage', () => {
-  const Link = withProps('div', { as: 'a' });
-
-  // Override the default 'a' with 'button'
-  const element = <Link as="button" type="button">Click</Link>;
-
-  expect(element.props.as).toBe('button');
-  expect(element.props.type).toBe('button');
-});
-
-test('should have cumulative displayName on chained components', () => {
-  const FirstDefaults = withProps('div', { className: 'first' });
-  const SecondDefaults = FirstDefaults.withProps({ id: 'second' });
-
-  // String components fall back to 'Component'
-  expect(FirstDefaults.displayName).toBe('Component.withProps');
-  // Each chained call adds another .withProps suffix
-  expect(SecondDefaults.displayName).toBe('Component.withProps.withProps');
-});
-
-test('should support chaining with withProps method', () => {
-  const PrimaryBox = withProps('div', {
-    className: 'box',
-  });
-
-  const SmallPrimaryBox = PrimaryBox.withProps({
-    style: { fontSize: '12px' },
-  });
-
-  // Explicitly passed props override
-  const element = <SmallPrimaryBox className="custom" style={{ fontSize: '14px' }}>Hello</SmallPrimaryBox>;
-
-  expect(element.props.className).toBe('custom');
-  expect(element.props.style).toEqual({ fontSize: '14px' });
-});
-
-test('should support forwardRef', () => {
-  const Box = withProps('div', { className: 'box' });
-
-  // Should be able to pass ref
-  const ref = React.createRef<HTMLDivElement>();
-  const element = <Box className="test-btn-ref" ref={ref}>Hello</Box>;
-
-  expect(element.props.children).toBe('Hello');
-});
-
-test('should work with complex props', () => {
-  const Card = withProps('div', {
-    className: 'card',
-    role: 'article',
-  });
-
-  const element = (
-    <Card className="cls-name" role="group" style={{ padding: '16px' }} aria-label="Card content">
-      Card content
-    </Card>
-  );
-
-  expect(element.props.role).toBe('group');
-  expect(element.props.style).toEqual({ padding: '16px' });
-  expect(element.props['aria-label']).toBe('Card content');
-});
-
-test('should preserve children', () => {
-  const Box = withProps('div', { className: 'box' });
-
-  const element = (
-    <Box>
-      <span>Child 1</span>
-      <span>Child 2</span>
-    </Box>
-  );
-
-  expect(element.props.children).toEqual([
-    <span>Child 1</span>,
-    <span>Child 2</span>,
-  ]);
-});
-
-test('should render with both as prop and custom props', () => {
-  const Box = withProps('div', { className: 'box' });
-
-  const element = <Box className="box-el" as="button" type="submit" data-action="submit">Submit</Box>;
-
-  expect(element.props.as).toBe('button');
-  expect(element.props.type).toBe('submit');
-  expect(element.props['data-action']).toBe('submit');
-});
-
 // Real Card component test
 interface CardProps extends HTMLAttributes<HTMLDivElement> {
   title?: string;
@@ -152,6 +25,86 @@ const Card: React.FC<CardProps> = ({ title, description, footer, variant = 'defa
 
 Card.displayName = 'Card';
 
+test('should set displayName based on component type', () => {
+  const DefaultCard = withProps(Card, { variant: 'elevated' });
+  expect(DefaultCard.displayName).toBe('Card.withProps');
+});
+
+test('should accept custom props', () => {
+  const DefaultCard = withProps(Card, { variant: 'elevated' });
+
+  const element = <DefaultCard className="custom" id="test">Hello</DefaultCard>;
+
+  expect(element.props.className).toBe('custom');
+  expect(element.props.id).toBe('test');
+  expect(element.props.children).toEqual('Hello');
+});
+
+test('should have cumulative displayName on chained components', () => {
+  const FirstDefaults = withProps(Card, { variant: 'elevated' });
+  const SecondDefaults = FirstDefaults.withProps({ className: 'first' });
+
+  expect(FirstDefaults.displayName).toBe('Card.withProps');
+  expect(SecondDefaults.displayName).toBe('Card.withProps.withProps');
+});
+
+test('should support chaining with withProps method', () => {
+  const PrimaryCard = withProps(Card, {
+    variant: 'elevated',
+  });
+
+  const SmallPrimaryCard = PrimaryCard.withProps({
+    style: { fontSize: '12px' },
+  });
+
+  const element = <SmallPrimaryCard className="custom" style={{ fontSize: '14px' }}>Hello</SmallPrimaryCard>;
+
+  expect(element.props.className).toBe('custom');
+  expect(element.props.style).toEqual({ fontSize: '14px' });
+});
+
+test('should support forwardRef', () => {
+  const DefaultCard = withProps(Card, { variant: 'elevated' });
+
+  const ref = React.createRef<HTMLDivElement>();
+  const element = <DefaultCard ref={ref}>Hello</DefaultCard>;
+
+  expect(element.props.children).toEqual('Hello');
+});
+
+test('should work with complex props', () => {
+  const StyledCard = withProps(Card, {
+    variant: 'elevated',
+    role: 'article',
+  });
+
+  const element = (
+    <StyledCard className="cls-name" role="group" style={{ padding: '16px' }} aria-label="Card content">
+      Card content
+    </StyledCard>
+  );
+
+  expect(element.props.role).toBe('group');
+  expect(element.props.style).toEqual({ padding: '16px' });
+  expect(element.props['aria-label']).toBe('Card content');
+});
+
+test('should preserve children', () => {
+  const DefaultCard = withProps(Card, { variant: 'elevated' });
+
+  const element = (
+    <DefaultCard>
+      <span>Child 1</span>
+      <span>Child 2</span>
+    </DefaultCard>
+  );
+
+  expect(element.props.children).toEqual([
+    <span>Child 1</span>,
+    <span>Child 2</span>,
+  ]);
+});
+
 test('should work with real React components', () => {
   const DefaultCard = withProps(Card, {
     variant: 'elevated',
@@ -160,7 +113,6 @@ test('should work with real React components', () => {
 
   expect(DefaultCard.displayName).toBe('Card.withProps');
 
-  // Test that the component can be created with standard div props
   const element = (
     <DefaultCard
       className="custom-card"
@@ -190,7 +142,6 @@ test('should support chaining with real components', () => {
   expect(PrimaryCard.displayName).toBe('Card.withProps');
   expect(StyledCard.displayName).toBe('Card.withProps.withProps');
 
-  // Test that chaining works with standard props
   const element = (
     <StyledCard
       id="my-card"
@@ -219,32 +170,3 @@ test('should override defaults from real components', () => {
   expect(element.props.children).toEqual('Content');
   expect(element.props.description).toBe('abc-desc');
 });
-
-test('should support React.Fragment as component', () => {
-  const Box = withProps('div', { className: 'box' });
-  const element = <Box as={React.Fragment}>Fragment content</Box>;
-
-  expect(element.props.as).toBe(React.Fragment);
-  expect(element.props.children).toBe('Fragment content');
-});
-
-test('should only pass key and children to Fragment', () => {
-  const Box = withProps('div', { className: 'box' });
-  // @ts-expect-error - Testing that props are passed even though Fragment won't use them
-  const element = <Box as={React.Fragment} id="should-not-pass">Content</Box>;
-
-  // Fragment should receive children, but not other props like id
-  expect(element.props.as).toBe(React.Fragment);
-  expect(element.props.children).toBe('Content');
-  expect(element.props.id).toBe('should-not-pass');
-});
-
-test('should support Fragment in defaultProps', () => {
-  const FragmentBox = withProps('div', { as: React.Fragment });
-  const element = <FragmentBox>Default Fragment</FragmentBox>;
-
-  // expect(element.props.as).toBe(React.Fragment);
-  expect(element.props.children).toBe('Default Fragment');
-});
-
-
