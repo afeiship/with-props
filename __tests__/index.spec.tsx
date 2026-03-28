@@ -166,6 +166,7 @@ test('should work with real React components', () => {
       className="custom-card"
       data-testid="card"
       role="article"
+      description="acbc"
     >
       <p>Card content</p>
     </DefaultCard>
