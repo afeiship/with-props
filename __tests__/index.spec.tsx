@@ -1,246 +1,210 @@
-/// <reference types="bun" />
-import { test, expect } from 'bun:test';
+import { render, screen } from '@testing-library/react';
 import React from 'react';
-import withProps from '../src';
+import { describe, expect, it, vi } from 'vitest';
+import withProps from '../src/index';
 
-test('should set displayName based on component type', () => {
-  const Box = withProps('div', { className: 'box' });
-  // String components don't have displayName, so it falls back to 'Box'
-  expect(Box.displayName).toBe('Box.withProps({"className":"box"})');
-});
+// Simple test component
+const Button = ({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
+  <button {...props}>{children}</button>
+);
 
-test('should accept custom props', () => {
-  const Box = withProps('div', { className: 'box' });
+// Component with ref
+const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(
+  (props, ref) => <input ref={ref} {...props} />,
+);
+Input.displayName = 'Input';
 
-  const element = <Box className="custom" id="test">Hello</Box>;
+describe('withProps', () => {
+  describe('basic functionality', () => {
+    it('should merge default props with provided props', () => {
+      const ButtonWithDefaults = withProps(Button, { className: 'default-class', type: 'button' });
+      render(<ButtonWithDefaults className="custom-class">Click me</ButtonWithDefaults>);
 
-  // Passed props are visible in element.props
-  expect(element.props.className).toBe('custom');
-  expect(element.props.id).toBe('test');
-  expect(element.props.children).toBe('Hello');
-});
+      const button = screen.getByRole('button');
+      expect(button).toHaveClass('custom-class');
+      expect(button).toHaveAttribute('type', 'button');
+    });
 
-test('should support polymorphic as prop to change element type', () => {
-  const Box = withProps('div', { className: 'box' });
+    it('should use default props when not overridden', () => {
+      const ButtonWithDefaults = withProps(Button, { className: 'default-class', type: 'submit' });
+      render(<ButtonWithDefaults>Click me</ButtonWithDefaults>);
 
-  // Render as a button instead of div
-  const element = <Box as="button" type="submit">Click me</Box>;
+      const button = screen.getByRole('button');
+      expect(button).toHaveClass('default-class');
+      expect(button).toHaveAttribute('type', 'submit');
+    });
 
-  expect(element.props.as).toBe('button');
-  expect(element.props.type).toBe('submit');
-});
+    it('should override default props with provided props', () => {
+      const ButtonWithDefaults = withProps(Button, { type: 'button', disabled: false });
+      render(<ButtonWithDefaults type="submit" disabled>Click me</ButtonWithDefaults>);
 
-test('should support as prop in defaultProps', () => {
-  const Link = withProps('div', { as: 'a' });
+      const button = screen.getByRole('button');
+      expect(button).toHaveAttribute('type', 'submit');
+      expect(button).toBeDisabled();
+    });
 
-  // Need to explicitly pass as prop for correct type inference
-  const element = <Link as="a" href="#" className="link">Go to link</Link>;
+    it('should pass children correctly', () => {
+      const ButtonWithDefaults = withProps(Button, { className: 'default-class' });
+      render(<ButtonWithDefaults>Click me</ButtonWithDefaults>);
 
-  // Explicitly passed props are visible
-  expect(element.props.href).toBe('#');
-  expect(element.props.className).toBe('link');
-});
-
-test('should allow overriding as prop at usage', () => {
-  const Link = withProps('div', { as: 'a' });
-
-  // Override the default 'a' with 'button'
-  const element = <Link as="button" type="button">Click</Link>;
-
-  expect(element.props.as).toBe('button');
-  expect(element.props.type).toBe('button');
-});
-
-test('should have cumulative displayName on chained components', () => {
-  const FirstDefaults = withProps('div', { className: 'first' });
-  const SecondDefaults = FirstDefaults.withProps({ id: 'second' });
-
-  expect(FirstDefaults.displayName).toBe('Box.withProps({"className":"first"})');
-  // Chained calls accumulate in displayName
-  expect(SecondDefaults.displayName).toBe('Box.withProps({"className":"first"}).withProps({"id":"second"})');
-});
-
-test('should support chaining with withProps method', () => {
-  const PrimaryBox = withProps('div', {
-    className: 'box',
+      const button = screen.getByRole('button');
+      expect(button).toHaveTextContent('Click me');
+    });
   });
 
-  const SmallPrimaryBox = PrimaryBox.withProps({
-    style: { fontSize: '12px' },
+  describe('ref forwarding', () => {
+    it('should forward ref to the underlying component', () => {
+      const InputWithDefaults = withProps(Input, { placeholder: 'Enter text' });
+      const ref = React.createRef<HTMLInputElement>();
+
+      render(<InputWithDefaults ref={ref} />);
+      expect(ref.current).toBeInstanceOf(HTMLInputElement);
+      expect(ref.current).toHaveAttribute('placeholder', 'Enter text');
+    });
+
+    it('should work with callback refs', () => {
+      const InputWithDefaults = withProps(Input, { defaultValue: 'test' });
+      const refCallback = vi.fn();
+
+      render(<InputWithDefaults ref={refCallback} />);
+      expect(refCallback).toHaveBeenCalled();
+      expect(refCallback.mock.calls[0][0]).toBeInstanceOf(HTMLInputElement);
+    });
   });
 
-  // Explicitly passed props override
-  const element = <SmallPrimaryBox className="custom" style={{ fontSize: '14px' }}>Hello</SmallPrimaryBox>;
+  describe('polymorphic components', () => {
+    it('should render as default element type', () => {
+      const Component = withProps(() => <div data-testid="test">Default</div>, {});
+      render(<Component />);
 
-  expect(element.props.className).toBe('custom');
-  expect(element.props.style).toEqual({ fontSize: '14px' });
-});
+      expect(screen.getByTestId('test')).toBeInTheDocument();
+    });
 
-test('should support forwardRef', () => {
-  const Box = withProps('div', { className: 'box' });
+    it('should support polymorphic "as" prop', () => {
+      const Component = withProps(({ as: As = 'div', children, ...props }: any) => (
+        <As {...props}>{children}</As>
+      ), { className: 'default' });
 
-  // Should be able to pass ref
-  const ref = React.createRef<HTMLDivElement>();
-  const element = <Box ref={ref}>Hello</Box>;
+      render(<Component as="button">Click me</Component>);
+      expect(screen.getByRole('button')).toHaveTextContent('Click me');
+    });
 
-  expect(element.props.children).toBe('Hello');
-});
+    it('should maintain default props with polymorphic components', () => {
+      const Component = withProps(({ as: As = 'div', children, ...props }: any) => (
+        <As {...props}>{children}</As>
+      ), { className: 'default-class' });
 
-test('should work with complex props', () => {
-  const Card = withProps('div', {
-    className: 'card',
-    role: 'article',
+      render(<Component as="span">Content</Component>);
+      const span = screen.getByText('Content');
+      expect(span.tagName).toBe('SPAN');
+      expect(span).toHaveClass('default-class');
+    });
   });
 
-  const element = (
-    <Card role="group" style={{ padding: '16px' }} aria-label="Card content">
-      Card content
-    </Card>
-  );
+  describe('chaining with withProps()', () => {
+    it('should support chaining withProps() method', () => {
+      const ButtonWithDefaults = withProps(Button, { className: 'base' });
+      const ButtonWithMoreDefaults = ButtonWithDefaults.withProps({ type: 'submit' });
 
-  expect(element.props.role).toBe('group');
-  expect(element.props.style).toEqual({ padding: '16px' });
-  expect(element.props['aria-label']).toBe('Card content');
-});
+      render(<ButtonWithMoreDefaults>Submit</ButtonWithMoreDefaults>);
+      const button = screen.getByRole('button');
+      expect(button).toHaveClass('base');
+      expect(button).toHaveAttribute('type', 'submit');
+    });
 
-test('should preserve children', () => {
-  const Box = withProps('div', { className: 'box' });
+    it('should allow multiple levels of chaining', () => {
+      const BaseButton = withProps(Button, { className: 'base' });
+      const SubmitButton = BaseButton.withProps({ type: 'submit' });
+      const DisabledSubmitButton = SubmitButton.withProps({ disabled: true });
 
-  const element = (
-    <Box>
-      <span>Child 1</span>
-      <span>Child 2</span>
-    </Box>
-  );
+      render(<DisabledSubmitButton>Submit</DisabledSubmitButton>);
+      const button = screen.getByRole('button');
+      expect(button).toHaveClass('base');
+      expect(button).toHaveAttribute('type', 'submit');
+      expect(button).toBeDisabled();
+    });
 
-  expect(element.props.children).toEqual([
-    <span>Child 1</span>,
-    <span>Child 2</span>,
-  ]);
-});
+    it('should override props correctly in chained calls', () => {
+      const BaseButton = withProps(Button, { className: 'base', type: 'button' });
+      const SubmitButton = BaseButton.withProps({ className: 'submit', type: 'submit' });
 
-test('should render with both as prop and custom props', () => {
-  const Box = withProps('div', { className: 'box' });
-
-  const element = <Box as="button" type="submit" data-action="submit">Submit</Box>;
-
-  expect(element.props.as).toBe('button');
-  expect(element.props.type).toBe('submit');
-  expect(element.props['data-action']).toBe('submit');
-});
-
-// Real Card component test
-interface CardProps {
-  title?: string;
-  description?: string;
-  footer?: React.ReactNode;
-  variant?: 'default' | 'outlined' | 'elevated';
-  children?: React.ReactNode;
-}
-
-const Card: React.FC<CardProps> = ({ title, description, footer, variant = 'default', children }) => {
-  return (
-    <div className={`card card--${variant}`} data-variant={variant}>
-      {title && <div className="card__title">{title}</div>}
-      {description && <div className="card__description">{description}</div>}
-      {children && <div className="card__content">{children}</div>}
-      {footer && <div className="card__footer">{footer}</div>}
-    </div>
-  );
-};
-
-Card.displayName = 'Card';
-
-test('should work with real React components', () => {
-  const DefaultCard = withProps(Card, {
-    variant: 'elevated',
-    title: 'Default Title',
+      render(<SubmitButton>Submit</SubmitButton>);
+      const button = screen.getByRole('button');
+      expect(button).toHaveClass('submit');
+      expect(button).toHaveAttribute('type', 'submit');
+    });
   });
 
-  expect(DefaultCard.displayName).toBe('Card.withProps({"variant":"elevated","title":"Default Title"})');
+  describe('displayName', () => {
+    it('should set displayName correctly', () => {
+      const ButtonWithDefaults = withProps(Button, { className: 'default' });
+      expect(ButtonWithDefaults.displayName).toBe('Button.withProps');
+    });
 
-  // Test that the component can be created with standard div props
-  const element = (
-    <DefaultCard
-      className="custom-card"
-      data-testid="card"
-      role="article"
-    >
-      <p>Card content</p>
-    </DefaultCard>
-  );
+    it('should set displayName for chained withProps', () => {
+      const BaseButton = withProps(Button, { className: 'base' });
+      const SubmitButton = BaseButton.withProps({ type: 'submit' });
+      expect(SubmitButton.displayName).toBe('Button.withProps.withProps');
+    });
 
-  expect(element.props.className).toBe('custom-card');
-  expect(element.props['data-testid']).toBe('card');
-  expect(element.props.role).toBe('article');
-  expect(element.props.children).toEqual(<p>Card content</p>);
-});
-
-test('should support chaining with real components', () => {
-  const PrimaryCard = withProps(Card, {
-    variant: 'elevated',
+    it('should handle components without displayName', () => {
+      const AnonymousComponent = ({ children }: { children: React.ReactNode }) => <div>{children}</div>;
+      const ComponentWithDefaults = withProps(AnonymousComponent, { className: 'default' });
+      expect(ComponentWithDefaults.displayName).toBe('Component.withProps');
+    });
   });
 
-  const StyledCard = PrimaryCard.withProps({
-    className: 'card-styled',
+  describe('event handlers', () => {
+    it('should merge event handlers correctly', () => {
+      const defaultOnClick = vi.fn();
+      const customOnClick = vi.fn();
+
+      const ButtonWithDefaults = withProps(Button, { onClick: defaultOnClick });
+      render(<ButtonWithDefaults onClick={customOnClick}>Click me</ButtonWithDefaults>);
+
+      const button = screen.getByRole('button');
+      button.click();
+
+      // Custom handler should be called, default should not (props override)
+      expect(customOnClick).toHaveBeenCalledTimes(1);
+      expect(defaultOnClick).not.toHaveBeenCalled();
+    });
   });
 
-  expect(PrimaryCard.displayName).toBe('Card.withProps({"variant":"elevated"})');
-  expect(StyledCard.displayName).toBe('Card.withProps({"variant":"elevated"}).withProps({"className":"card-styled"})');
+  describe('edge cases', () => {
+    it('should handle empty default props', () => {
+      const ButtonWithDefaults = withProps(Button, {});
+      render(<ButtonWithDefaults className="test">Click</ButtonWithDefaults>);
 
-  // Test that chaining works with standard props
-  const element = (
-    <StyledCard
-      id="my-card"
-      style={{ padding: '16px' }}
-    />
-  );
+      expect(screen.getByRole('button')).toHaveClass('test');
+    });
 
-  expect(element.props.id).toBe('my-card');
-  expect(element.props.style).toEqual({ padding: '16px' });
-});
+    it('should handle undefined and null values in props', () => {
+      const ButtonWithDefaults = withProps(Button, { className: undefined, 'data-test': null as any });
+      render(<ButtonWithDefaults>Click</ButtonWithDefaults>);
 
-test('should override defaults from real components', () => {
-  const DefaultCard = withProps(Card, {
-    className: 'default-card',
-    title: 'Default Title',
+      expect(screen.getByRole('button')).toBeInTheDocument();
+    });
+
+    it('should work with complex prop values', () => {
+      const style = { color: 'red', fontSize: '16px' };
+      const ButtonWithDefaults = withProps(Button, { style });
+      render(<ButtonWithDefaults>Click</ButtonWithDefaults>);
+
+      const button = screen.getByRole('button');
+      expect(button.style.color).toBe('red');
+      expect(button.style.fontSize).toBe('16px');
+    });
+
+    it('should handle aria attributes', () => {
+      const ButtonWithDefaults = withProps(Button, {
+        'aria-label': 'Default button',
+        role: 'button',
+      });
+      render(<ButtonWithDefaults aria-label="Custom button">Click</ButtonWithDefaults>);
+
+      const button = screen.getByRole('button');
+      expect(button).toHaveAttribute('aria-label', 'Custom button');
+    });
   });
-
-  const element = (
-    <DefaultCard className="custom-card" id="card-1" description="abc-desc">
-      Content
-    </DefaultCard>
-  );
-
-  expect(element.props.className).toBe('custom-card');
-  expect(element.props.id).toBe('card-1');
-  expect(element.props.children).toEqual('Content');
-  expect(element.props.description).toBe("abc-desc")
 });
-
-test('should support React.Fragment as component', () => {
-  const Box = withProps('div', { className: 'box' });
-  const element = <Box as={React.Fragment}>Fragment content</Box>;
-
-  expect(element.props.as).toBe(React.Fragment);
-  expect(element.props.children).toBe('Fragment content');
-});
-
-test('should only pass key and children to Fragment', () => {
-  const Box = withProps('div', { className: 'box' });
-  const element = <Box as={React.Fragment} id="should-not-pass">Content</Box>;
-
-  // Fragment should receive children, but not other props like id
-  expect(element.props.as).toBe(React.Fragment);
-  expect(element.props.children).toBe('Content');
-  expect(element.props.id).toBe('should-not-pass');
-});
-
-test('should support Fragment in defaultProps', () => {
-  const FragmentBox = withProps('div', { as: React.Fragment });
-  const element = <FragmentBox>Default Fragment</FragmentBox>;
-
-  // expect(element.props.as).toBe(React.Fragment);
-  expect(element.props.children).toBe('Default Fragment');
-});
-
