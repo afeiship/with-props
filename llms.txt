@@ -172,6 +172,112 @@ const Variant = Base.withProps({ className: 'variant' });
 <Variant className="custom" data-test="1" />
 ```
 
+## Advanced Usage
+
+### Working with Complex Components
+
+**Custom Component Interface:**
+```tsx
+interface CardProps {
+  title?: string;
+  description?: string;
+  footer?: React.ReactNode;
+  variant?: 'default' | 'outlined' | 'elevated';
+  children?: React.ReactNode;
+}
+
+const Card: React.FC<CardProps> = ({ title, description, footer, variant = 'default', children }) => {
+  return (
+    <div className={`card card--${variant}`} data-variant={variant}>
+      {title && <div className="card__title">{title}</div>}
+      {description && <div className="card__description">{description}</div>}
+      {children && <div className="card__content">{children}</div>}
+      {footer && <div className="card__footer">{footer}</div>}
+    </div>
+  );
+};
+
+// Create preset variants
+const DefaultCard = withProps(Card, {
+  variant: 'elevated',
+  title: 'Default Title',
+});
+
+const PrimaryCard = DefaultCard.withProps({
+  className: 'card-primary',
+});
+
+// Usage
+<DefaultCard description="This is a default card" />
+<PrimaryCard title="Primary Card" description="This is a primary card" />
+```
+
+### Ref Forwarding
+
+Components created with `withProps` support `forwardRef` for ref forwarding:
+
+```tsx
+const Box = withProps('div', { className: 'box' });
+
+const MyComponent = () => {
+  const ref = React.useRef<HTMLDivElement>(null);
+
+  return <Box ref={ref}>Content</Box>;
+};
+```
+
+### Fragment Special Handling
+
+When using `React.Fragment` as the component type, only valid Fragment props (`key` and `children`) are passed:
+
+```tsx
+const Box = withProps('div', { className: 'box' });
+
+// Only key and children will be passed to Fragment
+<Box as={React.Fragment} key="unique">
+  Content
+</Box>
+```
+
+**Note:** When `as` is set to `React.Fragment`, props like `className`, `id`, `style`, etc. are ignored since Fragment doesn't accept them.
+
+### Display Name Generation
+
+Components automatically get descriptive `displayName` for debugging:
+
+```tsx
+const Box = withProps('div', { className: 'box' });
+// displayName: "Box.withProps({"className":"box"})"
+
+const PrimaryBox = Box.withProps({ variant: 'primary' });
+// displayName: "Box.withProps({"className":"box"}).withProps({"variant":"primary"})"
+```
+
+For custom React components, the component's `displayName` is used:
+
+```tsx
+const Card: React.FC<CardProps> = ({ ... }) => { ... };
+Card.displayName = 'Card';
+
+const DefaultCard = withProps(Card, { variant: 'elevated' });
+// displayName: "Card.withProps({"variant":"elevated"})"
+```
+
+### Accessibility Features
+
+Works seamlessly with ARIA attributes and accessibility props:
+
+```tsx
+const AccessibleBox = withProps('div', {
+  role: 'article',
+  'aria-label': 'Content box',
+});
+
+<AccessibleBox aria-describedby="content-desc" tabIndex={0}>
+  Accessible content
+</AccessibleBox>
+```
+
 ## Usage Notes for Agents
 
 - **Default Export:** The library exports a default function. Use `import withProps from '@jswork/with-props'`
@@ -182,6 +288,142 @@ const Variant = Base.withProps({ className: 'variant' });
 - **Fragment Handling:** When `as` is set to `React.Fragment`, only `key` and `children` props are passed
 - **Peer Dependency:** React 18+ is required as a peer dependency
 - **Bundle Size:** The library is approximately 1KB minified and has zero runtime dependencies
+
+## FAQ & Troubleshooting
+
+### Q: Why are my props not being applied to Fragment?
+**A:** React.Fragment only accepts `key` and `children` props. When using `as={React.Fragment}`, other props like `className`, `id`, or `style` are intentionally ignored by the library.
+
+### Q: Can I use withProps with class components?
+**A:** Yes, `withProps` works with both functional components and class components:
+
+```tsx
+class MyClassComponent extends React.Component<MyProps> {
+  render() { /* ... */ }
+}
+
+const DefaultMyComponent = withProps(MyClassComponent, {
+  someProp: 'default'
+});
+```
+
+### Q: How does type inference work with the `as` prop?
+**A:** When you specify `as="button"`, TypeScript automatically infers the props for a `button` element. This provides full type safety and autocomplete:
+
+```tsx
+const Box = withProps('div', { className: 'box' });
+
+// TypeScript knows this accepts button-specific props
+<Box as="button" type="submit" formAction="/submit">
+  Submit
+</Box>
+```
+
+### Q: Can I override the `as` prop in defaultProps?
+**A:** Yes, you can set a default `as` prop, but it can still be overridden when rendering:
+
+```tsx
+// Default to 'a' tag
+const Link = withProps('div', { as: 'a' });
+
+// Override to button
+<Link as="button">Click me</Link>
+```
+
+### Q: How do I handle ref with custom components?
+**A:** The library automatically handles ref forwarding. For custom components, ensure they use `forwardRef` if they need to expose refs:
+
+```tsx
+const CustomInput = React.forwardRef<HTMLInputElement, InputProps>(
+  (props, ref) => <input ref={ref} {...props} />
+);
+
+const DefaultInput = withProps(CustomInput, { type: 'text' });
+
+// Ref works as expected
+const ref = React.useRef<HTMLInputElement>(null);
+<DefaultInput ref={ref} />
+```
+
+### Q: What happens when I chain withProps multiple times?
+**A:** Each `.withProps()` call creates a new component variant. Props are merged in the order they are defined:
+
+```tsx
+const Base = withProps('div', { className: 'base', id: 'root' });
+const Variant1 = Base.withProps({ className: 'variant1' });
+const Variant2 = Variant1.withProps({ className: 'variant2' });
+
+// When rendering Variant2:
+// - className: user prop > variant2 > variant1 > base
+// - id: user prop > base
+<Variant2 className="custom" />
+// Results in: className="custom", id="root"
+```
+
+### Q: Can I use withProps in Next.js or Remix?
+**A:** Yes, the library is framework-agnostic and works with any React-based framework:
+
+```tsx
+// Next.js example (app directory)
+import withProps from '@jswork/with-props';
+
+const Button = withProps('button', { className: 'btn' });
+
+export default function Page() {
+  return <Button>Click me</Button>;
+}
+```
+
+### Q: How do I debug components created with withProps?
+**A:** Each component gets a descriptive `displayName` that shows in React DevTools:
+
+```tsx
+const Box = withProps('div', { className: 'box' });
+console.log(Box.displayName);
+// Output: "Box.withProps({"className":"box"})"
+
+const PrimaryBox = Box.withProps({ variant: 'primary' });
+console.log(PrimaryBox.displayName);
+// Output: "Box.withProps({"className":"box"}).withProps({"variant":"primary"})"
+```
+
+## API Reference
+
+### Complete Type Definitions
+
+```typescript
+// Base props for polymorphic components
+interface PolymorphicProps<C extends ElementType> {
+  as?: C;
+  children?: React.ReactNode;
+}
+
+// Complete props type for a component
+type Props<C extends ElementType> = PolymorphicProps<C> &
+  Omit<React.ComponentPropsWithoutRef<C>, keyof PolymorphicProps<C>>;
+
+// Return type for withProps
+type WithPropsReturnType<D extends Record<string, unknown>> = (
+  <C extends ElementType = 'div'>(
+    props: D extends { as: infer DefaultAs }
+      ? DefaultAs extends ElementType
+        ? React.ComponentPropsWithoutRef<DefaultAs> & Omit<D, 'as'> & { as?: C; ref?: React.Ref<React.ComponentRef<C>> }
+        : Props<C> & D & { ref?: React.Ref<React.ComponentRef<C>> }
+      : Props<C> & D & { ref?: React.Ref<React.ComponentRef<C>> },
+  ) => React.ReactElement
+) & {
+  displayName?: string;
+  withProps<D2 extends Record<string, unknown>>(
+    defaultProps: D2,
+  ): WithPropsReturnType<D2>;
+};
+
+// Main function
+function withProps<D extends Record<string, unknown>>(
+  component: ElementType,
+  defaultProps: D
+): WithPropsReturnType<D>;
+```
 
 ## Common Use Cases
 
@@ -205,8 +447,446 @@ const EmailInput = BaseInput.withProps({ type: 'email' });
 const PasswordInput = BaseInput.withProps({ type: 'password' });
 ```
 
+### Button Variants System
+```tsx
+const BaseButton = withProps('button', {
+  className: 'btn',
+  type: 'button' as const,
+});
+
+const PrimaryButton = BaseButton.withProps({
+  className: 'btn btn-primary',
+  variant: 'primary' as const,
+});
+
+const SecondaryButton = BaseButton.withProps({
+  className: 'btn btn-secondary',
+  variant: 'secondary' as const,
+});
+
+const DangerButton = BaseButton.withProps({
+  className: 'btn btn-danger',
+  variant: 'danger' as const,
+});
+
+// Usage
+<PrimaryButton>Submit</PrimaryButton>
+<SecondaryButton>Cancel</SecondaryButton>
+<DangerButton>Delete</DangerButton>
+```
+
+### Layout System
+```tsx
+// Base containers
+const Container = withProps('div', {
+  className: 'container',
+  style: { maxWidth: '1200px', margin: '0 auto', padding: '0 1rem' },
+});
+
+const Flex = withProps('div', {
+  className: 'flex',
+  style: { display: 'flex' },
+});
+
+const Grid = withProps('div', {
+  className: 'grid',
+  style: { display: 'grid' },
+});
+
+// Variants
+const FlexCenter = Flex.withProps({
+  style: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+});
+
+const FlexBetween = Flex.withProps({
+  style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
+});
+
+const GridCols2 = Grid.withProps({
+  style: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)' },
+});
+
+const GridCols3 = Grid.withProps({
+  style: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)' },
+});
+```
+
+### Typography System
+```tsx
+const BaseText = withProps('p', {
+  className: 'text',
+  style: { margin: 0, lineHeight: 1.5 },
+});
+
+const Heading1 = withProps('h1', {
+  className: 'text-2xl font-bold',
+  style: { fontSize: '2rem', fontWeight: 'bold', margin: 0 },
+});
+
+const Heading2 = withProps('h2', {
+  className: 'text-xl font-semibold',
+  style: { fontSize: '1.5rem', fontWeight: 600, margin: 0 },
+});
+
+const Heading3 = withProps('h3', {
+  className: 'text-lg font-medium',
+  style: { fontSize: '1.25rem', fontWeight: 500, margin: 0 },
+});
+
+const SmallText = BaseText.withProps({
+  className: 'text-sm',
+  style: { fontSize: '0.875rem' },
+});
+
+const MutedText = BaseText.withProps({
+  className: 'text-muted',
+  style: { color: '#6b7280' },
+});
+```
+
+## Best Practices
+
+### 1. Naming Conventions
+Use descriptive names that indicate the component's purpose:
+
+```tsx
+// Good
+const PrimaryButton = withProps('button', { className: 'btn-primary' });
+const EmailInput = withProps('input', { type: 'email' });
+const CardElevated = withProps('div', { className: 'card card-elevated' });
+
+// Avoid
+const Button1 = withProps('button', { className: 'btn' });
+const Input2 = withProps('input', { type: 'text' });
+```
+
+### 2. Compose Variants Hierarchically
+Start with a base component and create variants through chaining:
+
+```tsx
+// Base component
+const BaseCard = withProps('div', { className: 'card' });
+
+// First level variants
+const ElevatedCard = BaseCard.withProps({ className: 'card card-elevated' });
+const OutlinedCard = BaseCard.withProps({ className: 'card card-outlined' });
+
+// Second level variants
+const PrimaryElevatedCard = ElevatedCard.withProps({ className: 'card card-elevated card-primary' });
+const DangerOutlinedCard = OutlinedCard.withProps({ className: 'card card-outlined card-danger' });
+```
+
+### 3. Type Safety with Custom Props
+Always define interfaces for custom components:
+
+```tsx
+interface LinkProps {
+  href: string;
+  external?: boolean;
+  children: React.ReactNode;
+}
+
+const Link: React.FC<LinkProps> = ({ href, external, children }) => {
+  return (
+    <a href={href} {...(external && { target: '_blank', rel: 'noopener noreferrer' })}>
+      {children}
+    </a>
+  );
+};
+
+const ExternalLink = withProps(Link, { external: true });
+```
+
+### 4. Use with CSS Frameworks
+Works perfectly with Tailwind CSS, Bootstrap, or other CSS frameworks:
+
+```tsx
+// Tailwind CSS example
+const Btn = withProps('button', {
+  className: 'px-4 py-2 rounded font-medium transition-colors',
+});
+
+const BtnPrimary = Btn.withProps({
+  className: 'px-4 py-2 rounded font-medium transition-colors bg-blue-500 text-white hover:bg-blue-600',
+});
+
+const BtnSecondary = Btn.withProps({
+  className: 'px-4 py-2 rounded font-medium transition-colors bg-gray-200 text-gray-800 hover:bg-gray-300',
+});
+```
+
+### 5. Maintainability
+Keep component definitions organized:
+
+```tsx
+// components/ui/button.tsx
+const BaseButton = withProps('button', { className: 'btn' });
+export const PrimaryButton = BaseButton.withProps({ className: 'btn btn-primary' });
+export const SecondaryButton = BaseButton.withProps({ className: 'btn btn-secondary' });
+export const DangerButton = BaseButton.withProps({ className: 'btn btn-danger' });
+export default BaseButton;
+```
+
+## Common Patterns
+
+### Conditional Props with Polymorphic Behavior
+```tsx
+const InteractiveBox = withProps('div', {
+  className: 'box',
+  style: { padding: '1rem', cursor: 'pointer' },
+});
+
+// Render as button when interaction is needed
+<InteractiveBox as="button" onClick={handleClick}>
+  Click me
+</InteractiveBox>
+
+// Render as link when navigation is needed
+<InteractiveBox as="a" href="/about">
+  About
+</InteractiveBox>
+
+// Render as div for static content
+<InteractiveBox>
+  Static content
+</InteractiveBox>
+```
+
+### Theme-Aware Components
+```tsx
+const ThemedCard = withProps('div', {
+  className: 'card',
+  style: { backgroundColor: 'white', color: 'black' },
+});
+
+const DarkCard = ThemedCard.withProps({
+  style: { backgroundColor: '#1a1a1a', color: 'white' },
+});
+
+// Usage based on theme
+{isDark ? <DarkCard>Dark content</DarkCard> : <ThemedCard>Light content</ThemedCard>}
+```
+
+### Data Attributes for Testing
+```tsx
+const TestableButton = withProps('button', {
+  'data-testid': 'button',
+  className: 'btn',
+});
+
+const SubmitButton = TestableButton.withProps({
+  'data-testid': 'submit-button',
+  type: 'submit',
+});
+```
+
 ## Development
 
 The library is built with TypeScript and compiled using tsup. Source files are located in `src/` and compiled outputs are in `dist/`.
 
+### Build System
+- **Compiler**: tsup for fast TypeScript compilation
+- **Type Checker**: TypeScript 6.0+
+- **Test Runner**: Bun test
+- **Package Manager**: pnpm
+
+### Development Commands
+```bash
+# Install dependencies
+pnpm install
+
+# Build the library
+pnpm build
+
+# Run tests
+pnpm test
+
+# Release new version
+pnpm release
+```
+
 For contributions, issues, or feature requests, please visit the [GitHub repository](https://github.com/afeiship/with-props).
+
+## Migration Guide
+
+### From Default Props Pattern
+
+**Before (using defaultProps):**
+```tsx
+const Button = ({ className, children, ...props }) => {
+  return (
+    <button className={`btn ${className}`} {...props}>
+      {children}
+    </button>
+  );
+};
+
+Button.defaultProps = {
+  className: 'btn-default',
+  type: 'button'
+};
+```
+
+**After (using withProps):**
+```tsx
+const Button = ({ className, children, ...props }) => {
+  return (
+    <button className={`btn ${className}`} {...props}>
+      {children}
+    </button>
+  );
+};
+
+const DefaultButton = withProps(Button, {
+  className: 'btn-default',
+  type: 'button'
+});
+```
+
+### From Factory Functions
+
+**Before:**
+```tsx
+const createButton = (variant, size) => {
+  return ({ children, ...props }) => (
+    <button className={`btn btn-${variant} btn-${size}`} {...props}>
+      {children}
+    </button>
+  );
+};
+
+const PrimaryLargeButton = createButton('primary', 'large');
+```
+
+**After:**
+```tsx
+const BaseButton = withProps('button', { className: 'btn' });
+const PrimaryButton = BaseButton.withProps({ className: 'btn btn-primary' });
+const PrimaryLargeButton = PrimaryButton.withProps({ className: 'btn btn-primary btn-large' });
+```
+
+### From HOC Pattern
+
+**Before:**
+```tsx
+function withDefaultProps(Component, defaultProps) {
+  return function WrappedComponent(props) {
+    return <Component {...defaultProps} {...props} />;
+  };
+}
+
+const DefaultCard = withDefaultProps(Card, { variant: 'elevated' });
+```
+
+**After:**
+```tsx
+const DefaultCard = withProps(Card, { variant: 'elevated' });
+```
+
+## Performance Considerations
+
+### Bundle Size
+- **Minified**: ~1KB
+- **Gzipped**: ~0.5KB
+- **Tree-shakeable**: Yes
+- **Runtime Dependencies**: Zero
+
+### Rendering Performance
+- **Component Creation**: Happens once at module load time
+- **Props Merging**: Uses native object spread (optimized by V8)
+- **No Runtime Overhead**: Direct component forwarding
+
+### Optimization Tips
+
+1. **Define variants outside components:**
+```tsx
+// Good - defined once
+const PrimaryButton = withProps('button', { className: 'btn-primary' });
+
+function App() {
+  return <PrimaryButton>Click</PrimaryButton>;
+}
+
+// Avoid - creating on every render
+function App() {
+  const PrimaryButton = withProps('button', { className: 'btn-primary' });
+  return <PrimaryButton>Click</PrimaryButton>;
+}
+```
+
+2. **Use stable references for complex props:**
+```tsx
+// Good - stable object
+const DEFAULT_STYLE = { padding: '1rem', margin: '0.5rem' };
+const StyledBox = withProps('div', { style: DEFAULT_STYLE });
+
+// Works - but object created on module load
+const StyledBox = withProps('div', {
+  style: { padding: '1rem', margin: '0.5rem' }
+});
+```
+
+3. **Memoize when using with hooks:**
+```tsx
+// Good - withProps is stable
+const Box = withProps('div', { className: 'box' });
+
+function App() {
+  const content = useMemo(() => <Box>Content</Box>, []);
+  return content;
+}
+```
+
+## Compatibility
+
+### React Versions
+- **React 18+**: Fully supported
+- **React 17**: Compatible (may need `@types/react` update)
+- **React 16**: Not officially supported
+
+### TypeScript Versions
+- **TypeScript 5.0+**: Recommended
+- **TypeScript 4.x**: Compatible
+- **TypeScript 3.x**: May have type inference limitations
+
+### Build Tools
+- **Vite**: Compatible
+- **Next.js**: Compatible (App Router and Pages Router)
+- **Remix**: Compatible
+- **Create React App**: Compatible
+- **Webpack**: Compatible
+- **esbuild**: Compatible
+
+### Testing Frameworks
+- **Jest**: Compatible
+- **Vitest**: Compatible
+- **Bun Test**: Compatible (used in development)
+- **React Testing Library**: Compatible
+
+## License
+
+MIT License - see [LICENSE.txt](LICENSE.txt) for details.
+
+## Related Packages
+
+- **@jswork/next**: Advanced utilities for Next.js applications
+- **@jswork/banner-defaults**: Package banner generation tools
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## Changelog
+
+See [GitHub Releases](https://github.com/afeiship/with-props/releases) for version history and changes.
+
+---
+
+**Last Updated**: 2026-03-28
+**Version**: 1.1.10
