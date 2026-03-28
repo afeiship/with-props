@@ -229,6 +229,7 @@ test('should support React.Fragment as component', () => {
 
 test('should only pass key and children to Fragment', () => {
   const Box = withProps('div', { className: 'box' });
+  // @ts-expect-error - Testing that props are passed even though Fragment won't use them
   const element = <Box as={React.Fragment} id="should-not-pass">Content</Box>;
 
   // Fragment should receive children, but not other props like id

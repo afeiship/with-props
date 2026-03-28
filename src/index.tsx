@@ -14,15 +14,15 @@ export type Props<C extends ElementType> = PolymorphicProps<C> &
 export type WithPropsReturnType<D extends Record<string, unknown>> = (<C extends ElementType = 'div'>(
   props: D extends { as: infer DefaultAs }
     ? DefaultAs extends ElementType
-      ? React.ComponentPropsWithoutRef<DefaultAs> & Omit<D, 'as'> & { as?: C; ref?: React.Ref<React.ComponentRef<C>> }
-      : Props<C> & D & { ref?: React.Ref<React.ComponentRef<C>> }
-    : Props<C> & D & { ref?: React.Ref<React.ComponentRef<C>> },
+      ? WithDefaultProps<React.ComponentPropsWithoutRef<DefaultAs>, Omit<D, 'as'>> & { as?: C; ref?: React.Ref<React.ComponentRef<C>> }
+      : WithDefaultProps<Props<C>, D> & { ref?: React.Ref<React.ComponentRef<C>> }
+    : WithDefaultProps<Props<C>, D> & { ref?: React.Ref<React.ComponentRef<C>> },
 ) => React.ReactElement) & {
   displayName?: string;
   withProps<D2 extends Record<string, unknown>>(
     this: WithPropsReturnType<D>,
     defaultProps: D2,
-  ): WithPropsReturnType<D2>;
+  ): WithPropsReturnType<D & D2>;
 };
 
 /** Merges original props with default props, keeping optionality. */
@@ -39,15 +39,27 @@ type ExtractProps<T> =
       : Record<string, unknown>;
 
 /**
+ * Return type for React components with withProps method.
+ * This type allows chaining while preserving the original component's props.
+ */
+export type WithComponentPropsReturnType<P, D extends Record<string, unknown>> = React.ComponentType<WithDefaultProps<P, D>> & {
+  displayName?: string;
+  withProps<D2 extends Record<string, unknown>>(
+    this: WithComponentPropsReturnType<P, any>,
+    defaultProps: D2,
+  ): WithComponentPropsReturnType<P, D & D2>;
+};
+
+/**
  * Creates a new component with default props.
  * @param component - The original component
  * @param defaultProps - Default props to merge
- * @returns A new component with merged props
+ * @returns A new component with merged props and chainable withProps method
  */
 function withProps<C extends React.ComponentType<any> & { withProps?: never }, D extends Record<string, unknown>>(
   component: C,
   defaultProps: D,
-): React.ComponentType<WithDefaultProps<ExtractProps<C>, D>>;
+): WithComponentPropsReturnType<ExtractProps<C>, D>;
 
 /** Polymorphic component overload. */
 function withProps<D extends Record<string, unknown>>(component: any, defaultProps: D): WithPropsReturnType<D>;
