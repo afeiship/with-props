@@ -19,7 +19,9 @@ type ExtractProps<T> = T extends React.ComponentType<infer P>
  * Return type for React components with withProps method.
  * This type allows chaining while preserving the original component's props.
  */
-export type WithPropsReturnType<P, D extends Record<string, unknown>> = React.ForwardRefExoticComponent<WithDefaultProps<P, D> & { ref?: RefType<P> }> & {
+export type WithPropsReturnType<P, D extends Record<string, unknown>> =
+  React.ForwardRefExoticComponent<WithDefaultProps<P, D> & { ref?: RefType<P> }>
+  & {
   displayName?: string;
   withProps<D2 extends Record<string, unknown>>(
     this: WithPropsReturnType<P, any>,
@@ -47,10 +49,12 @@ function withProps<C extends React.ComponentType<any> | keyof JSX.IntrinsicEleme
   type Props = ExtractProps<C>;
   type RefType = Props extends { ref?: infer R } ? R : unknown;
 
-  const Wrapped = forwardRef<RefType, WithDefaultProps<Props, D>>(function WrappedWithComponent(props, ref) {
-    const mergedProps = { ...defaultProps, ...props };
-    return React.createElement(component as any, { ref, ...mergedProps });
-  });
+  const Wrapped = forwardRef<RefType, WithDefaultProps<Props, D>>(
+    function WrappedWithComponent(props, ref) {
+      const mergedProps = { ...defaultProps, ...props };
+      return React.createElement(component as any, { ref, ...mergedProps });
+    },
+  );
 
   const displayName = typeof component === 'string'
     ? component
