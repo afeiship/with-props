@@ -44,8 +44,13 @@ test('should have cumulative displayName on chained components', () => {
   const FirstDefaults = withProps(Card, { variant: 'elevated' });
   const SecondDefaults = FirstDefaults.withProps({ className: 'first' });
 
+  const firstElement = <FirstDefaults variant="outlined" />;
+  const secondElement = <SecondDefaults variant="default" />;
+
   expect(FirstDefaults.displayName).toBe('Card.withProps');
   expect(SecondDefaults.displayName).toBe('Card.withProps.withProps');
+  expect(firstElement.props.variant).toBe("outlined")
+  expect(secondElement.props.variant).toBe("default")
 });
 
 test('should support chaining with withProps method', () => {
