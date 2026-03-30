@@ -5,7 +5,7 @@ type RefType<T> = T extends { ref?: infer R } ? R : unknown;
 
 /** Merges original props with default props, keeping optionality. */
 type WithDefaultProps<T, D> = Omit<T, keyof D> & {
-  [K in keyof D]?: K extends keyof T ? NonNullable<T[K]> | D[K] : D[K];
+  [K in keyof D]?: D[K];
 };
 
 /** Extracts props type from a component or intrinsic element string. */
