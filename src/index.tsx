@@ -1,4 +1,4 @@
-import React, { forwardRef } from 'react';
+import React, { forwardRef, type JSX } from 'react';
 
 /** Extract the ref type from props. */
 type RefType<T> = T extends { ref?: infer R } ? R : unknown;
