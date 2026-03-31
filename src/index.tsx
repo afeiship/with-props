@@ -3,10 +3,8 @@ import React, { forwardRef, type JSX } from 'react';
 /** Extract the ref type from props. */
 type RefType<T> = T extends { ref?: infer R } ? R : unknown;
 
-/** Merges original props with default props, keeping optionality. */
-type WithDefaultProps<T, D> = Omit<T, keyof D> & {
-  [K in keyof D]?: D[K];
-};
+/** Merges original props with default props, keeping optionality and original types. */
+type WithDefaultProps<T, D> = Omit<T, keyof D> & Partial<Pick<T, Extract<keyof D, keyof T>>>;
 
 /** Extracts props type from a component or intrinsic element string. */
 type ExtractProps<T> = T extends React.ComponentType<infer P>

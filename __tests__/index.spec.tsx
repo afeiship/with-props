@@ -282,7 +282,7 @@ test('should preserve literal types with HTMLAttributes cross types', () => {
 
   // Verify the component works correctly
   const element1 = <PrimaryButton />; // Uses default type='primary'
-  const element2 = <PrimaryButton type="primary" />; // Explicitly set
+  const element2 = <PrimaryButton type="link" />; // Explicitly set
   const element3 = <PrimaryButton danger />; // Other props work
 
   expect(element1).toBeTruthy();
