@@ -17,11 +17,11 @@ type ExtractProps<T> = T extends React.ComponentType<infer P>
  * Return type for React components with withProps method.
  * This type allows chaining while preserving the original component's props.
  */
-export type WithPropsReturnType<P, D extends Record<string, unknown>> =
+export type WithPropsReturnType<P, D extends Record<string, any>> =
   React.ForwardRefExoticComponent<WithDefaultProps<P, D> & { ref?: RefType<P> }>
   & {
   displayName?: string;
-  withProps<D2 extends Record<string, unknown>>(
+  withProps<D2 extends Record<string, any>>(
     this: WithPropsReturnType<P, any>,
     defaultProps: D2,
   ): WithPropsReturnType<P, D & D2>;
@@ -43,7 +43,7 @@ export type WithPropsReturnType<P, D extends Record<string, unknown>> =
  * // With an intrinsic element
  * const StyledDiv = withProps('div', { className: 'styled' });
  */
-function withProps<C extends React.ComponentType<any> | keyof JSX.IntrinsicElements, D extends Record<string, unknown> = {}>(
+function withProps<C extends React.ComponentType<any> | keyof JSX.IntrinsicElements, D extends Record<string, any> = {}>(
   component: C,
   defaultProps?: D,
 ): WithPropsReturnType<ExtractProps<C>, D> {
@@ -63,7 +63,7 @@ function withProps<C extends React.ComponentType<any> | keyof JSX.IntrinsicEleme
   Wrapped.displayName = `${displayName}.withProps`;
 
   const result = Object.assign(Wrapped, {
-    withProps<D2 extends Record<string, unknown>>(this: any, newDefaults: D2) {
+    withProps<D2 extends Record<string, any>>(this: any, newDefaults: D2) {
       return withProps(this, newDefaults);
     },
   });
