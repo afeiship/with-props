@@ -31,7 +31,7 @@ const Button: React.FC<ButtonProps> = ({ text, color = 'blue', size = 'medium' }
   );
 };
 
-// 创建带有默认 props 的组件
+// Create a component with default props
 const PrimaryButton = withProps(Button, {
   color: 'red',
   size: 'large'
@@ -40,10 +40,10 @@ const PrimaryButton = withProps(Button, {
 const App: React.FC = () => {
   return (
     <div>
-      {/* 使用默认 props */}
+      {/* Uses default props */}
       <PrimaryButton text="Click me" />
 
-      {/* 覆盖默认 props */}
+      {/* Override default props */}
       <PrimaryButton text="Cancel" color="gray" />
     </div>
   );

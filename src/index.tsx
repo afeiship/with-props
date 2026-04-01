@@ -30,10 +30,13 @@ export type WithPropsReturnType<P, D extends Record<string, unknown>> =
 /**
  * Creates a new component with default props.
  * @param component - The original component or intrinsic element string (e.g., 'div', 'span')
- * @param defaultProps - Default props to merge
+ * @param defaultProps - Default props to merge (optional)
  * @returns A new component with merged props and chainable withProps method
  *
  * @example
+ * // Without default props
+ * const WrappedCard = withProps(Card);
+ *
  * // With a component
  * const DefaultCard = withProps(Card, { variant: 'elevated' });
  *

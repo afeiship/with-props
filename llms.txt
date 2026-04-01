@@ -6,6 +6,7 @@ The library is designed for developers who want to create reusable component var
 **Important notes for agents:**
 - with-props exports a default function `withProps` that creates enhanced components
 - The first parameter can be: React component, intrinsic element string ('div', 'span', 'button', etc.), or another withProps component
+- The second parameter `defaultProps` is optional — `withProps(Card)` is valid
 - The `.withProps()` method can be chained to create multiple variants
 - Types exported: `WithPropsReturnType`, `WithDefaultProps`, `ExtractProps`, `RefType`
 - Default props are automatically overridden by explicitly provided props
@@ -50,7 +51,7 @@ pnpm add @jswork/with-props
 
 ## Core API
 
-### withProps(component, defaultProps)
+### withProps(component, defaultProps?)
 Creates a new component with default props applied.
 
 **Parameters:**
@@ -58,7 +59,7 @@ Creates a new component with default props applied.
   - **Intrinsic element string**: 'div', 'span', 'button', 'a', 'input', etc.
   - **React component**: Functional component, class component, or forwarded component
   - **withProps component**: Another withProps-wrapped component for chaining
-- `defaultProps`: Default props to apply to the component
+- `defaultProps` (optional): Default props to apply to the component
 
 **Returns:** A new React component with merged default props and a chainable `.withProps()` method
 
@@ -66,6 +67,10 @@ Creates a new component with default props applied.
 
 ```tsx
 import withProps from '@jswork/with-props';
+
+// Without default props (just wraps the component)
+const WrappedCard = withProps(Card);
+const WrappedDiv = withProps('div');
 
 // With string elements
 const Box = withProps('div', { className: 'box', padding: '1rem' });
@@ -424,12 +429,12 @@ export type WithPropsReturnType<P, D extends Record<string, unknown>> = React.Fo
 /**
  * Creates a new component with default props.
  * @param component - The original component or intrinsic element string (e.g., 'div', 'span')
- * @param defaultProps - Default props to merge
+ * @param defaultProps - Default props to merge (optional)
  * @returns A new component with merged props and chainable withProps method
  */
-function withProps<C extends React.ComponentType<any> | keyof JSX.IntrinsicElements, D extends Record<string, unknown>>(
+function withProps<C extends React.ComponentType<any> | keyof JSX.IntrinsicElements, D extends Record<string, unknown> = {}>(
   component: C,
-  defaultProps: D,
+  defaultProps?: D,
 ): WithPropsReturnType<ExtractProps<C>, D>;
 ```
 
@@ -1136,5 +1141,5 @@ See [GitHub Releases](https://github.com/afeiship/with-props/releases) for versi
 
 ---
 
-**Last Updated**: 2026-03-28
-**Version**: 1.1.13
+**Last Updated**: 2026-04-01
+**Version**: 1.1.17
