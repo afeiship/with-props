@@ -40,9 +40,9 @@ export type WithPropsReturnType<P, D extends Record<string, unknown>> =
  * // With an intrinsic element
  * const StyledDiv = withProps('div', { className: 'styled' });
  */
-function withProps<C extends React.ComponentType<any> | keyof JSX.IntrinsicElements, D extends Record<string, unknown>>(
+function withProps<C extends React.ComponentType<any> | keyof JSX.IntrinsicElements, D extends Record<string, unknown> = {}>(
   component: C,
-  defaultProps: D,
+  defaultProps?: D,
 ): WithPropsReturnType<ExtractProps<C>, D> {
   type Props = ExtractProps<C>;
   type RefType = Props extends { ref?: infer R } ? R : unknown;
