@@ -50,10 +50,17 @@ function withProps<C extends React.ComponentType<any> | keyof JSX.IntrinsicEleme
   type Props = ExtractProps<C>;
   type RefType = Props extends { ref?: infer R } ? R : unknown;
 
+  const canForwardRef = typeof component === 'string' ||
+    (component as any)?.$$typeof != null ||
+    (typeof component === 'function' && (component as any)?.prototype?.isReactComponent);
+
   const Wrapped = forwardRef<RefType, WithDefaultProps<Props, D>>(
     function WrappedWithComponent(props, ref) {
       const mergedProps = { ...defaultProps, ...props };
-      return React.createElement(component as any, { ref, ...mergedProps });
+      return React.createElement(
+        component as any,
+        canForwardRef ? { ref, ...mergedProps } : mergedProps,
+      );
     },
   );
 
